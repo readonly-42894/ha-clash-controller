@@ -1,5 +1,7 @@
 """Small real-core HA smoke; generic HA behavior lives in test_integration.py."""
 
+import asyncio
+import time
 from datetime import timedelta
 
 import pytest
@@ -40,6 +42,20 @@ async def test_core_loads_in_home_assistant(hass, running_core):
             hass.states.get(item.entity_id).state != STATE_UNAVAILABLE
             for item in enabled
         )
+        coordinator = entry.runtime_data.coordinator
+        if (coordinator.api.capabilities or {}).get("ws_traffic"):
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                status = coordinator.stream_status.get("traffic", {})
+                if status.get("last_frame_age_seconds") is not None:
+                    break
+                await asyncio.sleep(0.05)
+            assert (
+                coordinator.stream_status["traffic"]["last_frame_age_seconds"]
+                is not None
+            )
+        else:
+            assert "traffic" not in coordinator.stream_status
     finally:
         assert await hass.config_entries.async_unload(entry.entry_id)
         await hass.async_block_till_done()
@@ -67,7 +83,7 @@ async def test_real_process_outage_recovers_on_poll(hass, running_core):
     ids = [item.entity_id for item in entities if item.disabled_by is None]
     now = dt_util.utcnow()
     try:
-        await coordinator.async_stop_log_stream()
+        await coordinator.async_stop_streams()
         running_core.stop()
         async_fire_time_changed(
             hass, now + coordinator.update_interval + timedelta(seconds=1)

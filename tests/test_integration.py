@@ -59,6 +59,9 @@ def backend(monkeypatch):
             api = SimpleNamespace(
                 capabilities={
                     **dict.fromkeys(PAYLOAD, True),
+                    "ws_traffic": True,
+                    "ws_memory": True,
+                    "ws_connections": True,
                     "cache_fakeip_flush": True,
                     "cache_dns_flush": True,
                     "restart": True,
@@ -75,7 +78,21 @@ def backend(monkeypatch):
                 async_request=AsyncMock(return_value={}),
                 log_queue=asyncio.Queue(),
                 log_processed=asyncio.Event(),
+                stream_queues={
+                    key: asyncio.Queue() for key in PAYLOAD
+                },
             )
+
+            async def stream(key):
+                while True:
+                    frame = await api.stream_queues[key].get()
+                    if frame is None:
+                        return
+                    yield deepcopy(frame)
+
+            api.async_stream_traffic = lambda: stream("traffic")
+            api.async_stream_memory = lambda: stream("memory")
+            api.async_stream_connections = lambda: stream("connections")
 
             async def stream_logs(level: str = "warning"):
                 while True:
@@ -87,8 +104,15 @@ def backend(monkeypatch):
 
             api.async_stream_logs = stream_logs
 
-            async def fetch():
-                return FetchResult(deepcopy(api.payload), {})
+            async def fetch(*, skip=frozenset()):
+                return FetchResult(
+                    {
+                        key: deepcopy(value)
+                        for key, value in api.payload.items()
+                        if key not in skip
+                    },
+                    {},
+                )
 
             api.async_fetch_data = AsyncMock(side_effect=fetch)
             api.async_detect_capabilities = AsyncMock(
@@ -274,10 +298,18 @@ async def test_polling_outage_and_recovery(
     }
     original = deepcopy(api.payload)
 
-    async def fetch():
+    async def fetch(*, skip=frozenset()):
         return FetchResult(
-            deepcopy(api.payload),
-            {key: APIConnectionError("offline") for key in original if key not in api.payload},
+            {
+                key: deepcopy(value)
+                for key, value in api.payload.items()
+                if key not in skip
+            },
+            {
+                key: APIConnectionError("offline")
+                for key in original
+                if key not in api.payload
+            },
         )
 
     api.async_fetch_data.side_effect = fetch
@@ -311,6 +343,9 @@ async def test_polling_outage_and_recovery(
 
 async def test_offline_start_retries_without_probing(hass, backend):
     api = backend[0](HOST, "")
+    api.capabilities.update(
+        ws_traffic=False, ws_memory=False, ws_connections=False
+    )
     api.async_validate_connection.side_effect = APIConnectionError("offline")
     entry = MockConfigEntry(domain=DOMAIN, title="controller", data=dict(INPUT))
     entry.add_to_hass(hass)
@@ -427,6 +462,67 @@ async def test_numeric_entities_and_missing_values(hass, backend):
         api.payload["traffic"]["up"] = value
         await poll(hass, 11 * offset)
         assert (hass.states.get(upload).state == STATE_UNAVAILABLE) is (value != 0)
+
+
+async def test_websocket_push_updates_entities(hass, backend):
+    entry = await load_entry(hass, backend)
+    api = backend[1][HOST]
+    upload = entity_id(hass, entry, "_upload_speed")
+    assert float(hass.states.get(upload).state) == pytest.approx(1.048576)
+
+    await api.stream_queues["traffic"].put({"up": 2097152, "down": 0})
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done()
+
+    assert float(hass.states.get(upload).state) == pytest.approx(2.097152)
+
+
+async def test_websocket_memory_placeholder_is_ignored(hass, backend):
+    entry = await load_entry(hass, backend)
+    api = backend[1][HOST]
+    memory = entity_id(hass, entry, "_memory_used")
+
+    await api.stream_queues["memory"].put({"inuse": 0})
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done()
+
+    assert float(hass.states.get(memory).state) == pytest.approx(1.048576)
+
+
+async def test_stream_disconnect_falls_back_to_polling(hass, backend):
+    entry = await load_entry(hass, backend)
+    api = backend[1][HOST]
+    upload = entity_id(hass, entry, "_upload_speed")
+
+    await api.stream_queues["traffic"].put({"up": 2097152, "down": 0})
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=2))
+    await hass.async_block_till_done()
+    assert float(hass.states.get(upload).state) == pytest.approx(2.097152)
+
+    api.payload["traffic"]["up"] = 3145728
+    await api.stream_queues["traffic"].put(None)
+    await hass.async_block_till_done()
+    await poll(hass, 11)
+
+    assert float(hass.states.get(upload).state) == pytest.approx(3.145728)
+
+
+async def test_unload_stops_streams(hass, backend):
+    entry = await load_entry(hass, backend)
+    coordinator = entry.runtime_data.coordinator
+    assert set(coordinator.stream_status) == {
+        "traffic",
+        "memory",
+        "connections",
+    }
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert coordinator.stream_status == {}
 
 
 async def test_options_update(hass, backend):
