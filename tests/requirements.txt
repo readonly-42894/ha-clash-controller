@@ -2,4 +2,4 @@ pytest==9.0.3
 pytest-asyncio==1.4.0
 pytest-homeassistant-custom-component==0.13.365
 PyYAML==6.0.3
-clash-controller-api@https://git.o0kam1.dev/api/packages/HumanlessCode/pypi/files/clash-controller-api/0.2.1/clash_controller_api-0.2.1-py3-none-any.whl
+clash-controller-api@https://git.o0kam1.dev/api/packages/HumanlessCode/pypi/files/clash-controller-api/0.3.0/clash_controller_api-0.3.0-py3-none-any.whl
