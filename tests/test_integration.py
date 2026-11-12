@@ -71,8 +71,6 @@ def backend(monkeypatch):
                     **dict.fromkeys(PAYLOAD, True),
                     "cache_fakeip_flush": True,
                     "restart": True,
-                    "group_delay": True,
-                    "proxy_delay": True,
                 },
                 available_endpoints=[],
                 payload=deepcopy(PAYLOAD),
@@ -484,24 +482,6 @@ async def test_diagnostics_redaction(hass, backend):
             "rules_failed",
         ),
         (
-            "get_latency_service",
-            {"node": "A/B 中文"},
-            "GET",
-            "proxies/A%2FB%20%E4%B8%AD%E6%96%87/delay",
-            {"delay": 3},
-            {"latency": {"A/B 中文": 3}},
-            "latency_failed",
-        ),
-        (
-            "get_latency_service",
-            {"group": "A/B 中文"},
-            "GET",
-            "group/A%2FB%20%E4%B8%AD%E6%96%87/delay",
-            {"b": 5, "a": 2},
-            {"fastest_node": "a", "latency": [("a", 2), ("b", 5)]},
-            "latency_failed",
-        ),
-        (
             "api_call_service",
             {
                 "api_endpoint": "configs",
@@ -537,11 +517,6 @@ async def test_service_contracts(
     call = api.async_request.await_args
     assert (call.args[0] if call.args else call.kwargs["method"]) == method
     assert (call.args[1] if call.args else call.kwargs["endpoint"]) == endpoint
-    if service == "get_latency_service":
-        assert call.kwargs["params"] == {
-            "url": "https://www.gstatic.com/generate_204",
-            "timeout": 5000,
-        }
     if service == "dns_query_service":
         assert call.kwargs["params"] == {"name": "example.com", "type": "A"}
     if service == "api_call_service":
@@ -593,8 +568,6 @@ async def test_connections_and_multiple_entry_routing(hass, backend):
 @pytest.mark.parametrize(
     ("service", "data", "key"),
     [
-        ("get_latency_service", {}, "invalid_latency_target"),
-        ("get_latency_service", {"node": "a", "group": "b"}, "invalid_latency_target"),
         (
             "api_call_service",
             {"api_method": "GET", "api_endpoint": "configs", "api_data": "[]"},

@@ -79,7 +79,6 @@ Core capability is automatically detected at entry load, and unsupported entitie
 |-----------------------------|----------------------------------------------------|
 | `reboot_core_service`       | Reboot the selected Clash core.                    |
 | `filter_connection_service` | Find active connections and optionally close them. |
-| `get_latency_service`       | Test the latency of a proxy group or node.         |
 | `dns_query_service`         | Query a DNS record through the selected core.      |
 | `get_rule_service`          | Find rules by type, payload or proxy.              |
 | `api_call_service`          | Call any Clash-compatible API endpoint.            |

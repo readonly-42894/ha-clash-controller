@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from urllib.parse import quote
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
@@ -22,7 +21,6 @@ from .const import (
     DNS_QUERY_SERVICE_NAME,
     DOMAIN,
     FILTER_CONNECTION_SERVICE_NAME,
-    GET_LATENCY_SERVICE_NAME,
     GET_RULE_SERVICE_NAME,
     REBOOT_CORE_SERVICE_NAME,
 )
@@ -32,11 +30,6 @@ HOST_KEYWORD = "host"
 SRC_HOSTNAME_KEYWORD = "src_hostname"
 DES_HOSTNAME_KEYWORD = "des_hostname"
 CLOSE_CONNECTION = "close_connection"
-
-GROUP_NAME = "group"
-NODE_NAME = "node"
-TEST_URL = "url"
-TEST_TIMEOUT = "timeout"
 
 DOMAIN_NAME = "domain_name"
 RECORD_TYPE = "record_type"
@@ -64,16 +57,6 @@ FILTER_CONNECTION_SCHEMA = vol.Schema(
         vol.Optional(HOST_KEYWORD): cv.string,
         vol.Optional(SRC_HOSTNAME_KEYWORD): cv.string,
         vol.Optional(DES_HOSTNAME_KEYWORD): cv.string,
-    }
-)
-
-GET_LATENCY_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_DEVICE_ID): cv.string,
-        vol.Optional(GROUP_NAME): cv.string,
-        vol.Optional(NODE_NAME): cv.string,
-        vol.Optional(TEST_URL): cv.string,
-        vol.Optional(TEST_TIMEOUT): cv.positive_int,
     }
 )
 
@@ -143,12 +126,6 @@ class ClashServicesSetup:
             self.async_filter_connection_service,
             FILTER_CONNECTION_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
-        )
-        _register(
-            GET_LATENCY_SERVICE_NAME,
-            self.async_get_latency_service,
-            GET_LATENCY_SCHEMA,
-            supports_response=SupportsResponse.ONLY,
         )
         _register(
             DNS_QUERY_SERVICE_NAME,
@@ -296,54 +273,6 @@ class ClashServicesSetup:
             raise self._action_error("close_connections_failed", err) from err
 
         return service_response
-
-    async def async_get_latency_service(
-        self, service_call: ServiceCall
-    ) -> ServiceResponse:
-        """Execute service call for getting latency."""
-
-        coordinator = self._get_coordinator(service_call.data[CONF_DEVICE_ID])
-
-        def sort_group(data: dict) -> dict:
-            if not data:
-                return {"fastest_node": None,"latency": []}
-            sorted_items = sorted(data.items(), key=lambda x: x[1])
-            return {
-                "fastest_node": sorted_items[0][0],
-                "latency": sorted_items
-            }
-        
-        group = service_call.data.get(GROUP_NAME, "").strip()
-        node = service_call.data.get(NODE_NAME, "").strip()
-        if bool(group) ^ bool(node) is False:
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="invalid_latency_target",
-            )
-
-        capability = "group_delay" if group else "proxy_delay"
-        self._require_capability(coordinator, capability, "Latency testing")
-
-        url = service_call.data.get(TEST_URL, "https://www.gstatic.com/generate_204")
-        timeout = service_call.data.get(TEST_TIMEOUT, 5000)
-
-        try:
-            response = await coordinator.api.async_request(
-                method="GET",
-                endpoint=(
-                    f"group/{quote(group, safe='')}/delay"
-                    if group
-                    else f"proxies/{quote(node, safe='')}/delay"
-                ),
-                params={"url": url,"timeout": timeout},
-            )
-        except Exception as err:
-            raise self._action_error("latency_failed", err) from err
-        
-        if group:
-            return sort_group(response)
-        else:
-            return {"latency": {node: response.get("delay", [])}}
 
     async def async_dns_query_service(
         self, service_call: ServiceCall

@@ -101,9 +101,6 @@
         "unsupported_action": {
             "message": "所选内核不支持{action}。"
         },
-        "invalid_latency_target": {
-            "message": "策略组和节点必须且只能提供一个。"
-        },
         "invalid_json": {
             "message": "字段 {field} 必须包含 JSON 对象。"
         },
@@ -115,9 +112,6 @@
         },
         "close_connections_failed": {
             "message": "关闭连接时出错：{error}"
-        },
-        "latency_failed": {
-            "message": "获取延迟时出错：{error}"
         },
         "dns_query_failed": {
             "message": "执行 DNS 查询时出错：{error}"
@@ -178,32 +172,6 @@
                 "des_hostname": {
                     "name": "目标 IP",
                     "description": "按目标 IP 筛选"
-                }
-            }
-        },
-        "get_latency_service": {
-            "name": "获取延迟",
-            "description": "获取指定节点或组的延迟，每次只能提供一个字段。如果 URL 配置错误或请求超时，可能会返回 504 错误。",
-            "fields": {
-                "device_id": {
-                    "name": "实例",
-                    "description": "选择目标实例"
-                },
-                "group": {
-                    "name": "策略组名称",
-                    "description": "策略组名称，获取策略组延迟将清除固定选项"
-                },
-                "node": {
-                    "name": "节点名称",
-                    "description": "代理节点名称"
-                },
-                "url": {
-                    "name": "URL",
-                    "description": "用于测试延迟的 URL"
-                },
-                "timeout": {
-                    "name": "超时时间",
-                    "description": "连接超时时间（毫秒）"
                 }
             }
         },

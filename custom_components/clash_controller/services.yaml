@@ -39,42 +39,6 @@ filter_connection_service:
       selector:
         text:
 
-get_latency_service:
-  fields:
-    device_id:
-      required: true
-      selector:
-        device:
-          filter:
-            integration: clash_controller
-            model_id: clash_controller
-    group:
-      example: "Proxy"
-      required: false
-      selector:
-        text:
-    node:
-      example: "Fast-01"
-      required: false
-      selector:
-        text:
-    url:
-      example: "https://www.gstatic.com/generate_204"
-      default: "https://www.gstatic.com/generate_204"
-      required: false
-      selector:
-        text:
-    timeout:
-      example: 5000
-      default: 5000
-      required: false
-      selector:
-        number:
-          min: 100
-          max: 10000
-          step: 100
-          mode: "box"
-
 dns_query_service:
   fields:
     device_id:

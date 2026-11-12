@@ -101,9 +101,6 @@
         "unsupported_action": {
             "message": "Der gewählte Core unterstützt {action} nicht."
         },
-        "invalid_latency_target": {
-            "message": "Entweder eine Gruppe oder einen Knoten angeben, nicht beides."
-        },
         "invalid_json": {
             "message": "Das Feld {field} muss ein JSON-Objekt enthalten."
         },
@@ -115,9 +112,6 @@
         },
         "close_connections_failed": {
             "message": "Verbindungen konnten nicht geschlossen werden: {error}"
-        },
-        "latency_failed": {
-            "message": "Latenzmessung fehlgeschlagen: {error}"
         },
         "dns_query_failed": {
             "message": "DNS-Abfrage fehlgeschlagen: {error}"
@@ -178,32 +172,6 @@
                 "des_hostname": {
                     "name": "Ziel-IP",
                     "description": "Nach Ziel-IP filtern"
-                }
-            }
-        },
-        "get_latency_service": {
-            "name": "Latenz messen",
-            "description": "Die Latenz einer Gruppe oder eines Knotens messen. Nur eines der beiden Felder ausfüllen. Eine falsche URL oder Zeitüberschreitung kann Fehler 504 auslösen.",
-            "fields": {
-                "device_id": {
-                    "name": "Instanz",
-                    "description": "Zielinstanz auswählen"
-                },
-                "group": {
-                    "name": "Gruppe",
-                    "description": "Name der Proxygruppe. Die Messung hebt eine feste Auswahl in der Gruppe auf"
-                },
-                "node": {
-                    "name": "Knoten",
-                    "description": "Name des Proxyknotens"
-                },
-                "url": {
-                    "name": "URL",
-                    "description": "Ziel-URL für die Latenzmessung"
-                },
-                "timeout": {
-                    "name": "Zeitlimit",
-                    "description": "Zeitlimit der Verbindung in Millisekunden"
                 }
             }
         },

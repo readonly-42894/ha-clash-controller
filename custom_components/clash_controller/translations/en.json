@@ -101,9 +101,6 @@
         "unsupported_action": {
             "message": "{action} is not supported by the selected core."
         },
-        "invalid_latency_target": {
-            "message": "Provide exactly one of group or node."
-        },
         "invalid_json": {
             "message": "The {field} field must contain a JSON object."
         },
@@ -115,9 +112,6 @@
         },
         "close_connections_failed": {
             "message": "Error closing connections: {error}"
-        },
-        "latency_failed": {
-            "message": "Error getting latency: {error}"
         },
         "dns_query_failed": {
             "message": "Error performing the DNS query: {error}"
@@ -178,32 +172,6 @@
                 "des_hostname": {
                     "name": "Destination IP",
                     "description": "Filter by destination IP"
-                }
-            }
-        },
-        "get_latency_service": {
-            "name": "Get Latency",
-            "description": "Get the latency of a specified node or group. Only one field should be provided at a time. A 504 error may occur if the URL is misconfigured or the request times out.",
-            "fields": {
-                "device_id": {
-                    "name": "Instance",
-                    "description": "Select the target instance"
-                },
-                "group": {
-                    "name": "Group Name",
-                    "description": "The proxy group name. Testing a group will also clear its fixed option if set"
-                },
-                "node": {
-                    "name": "Node Name",
-                    "description": "The proxy node name"
-                },
-                "url": {
-                    "name": "URL",
-                    "description": "The URL used to test the latency"
-                },
-                "timeout": {
-                    "name": "Timeout",
-                    "description": "Connection timeout in milliseconds"
                 }
             }
         },
