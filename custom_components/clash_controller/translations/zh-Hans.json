@@ -54,12 +54,6 @@
           },
           "flush_dns_cache": {
             "name": "清除 DNS 缓存"
-          },
-          "provider_healthcheck": {
-            "name": "{provider_name} 测速"
-          },
-          "default_proxy_group_healthcheck": {
-            "name": "默认代理组测速"
           }
         },
         "select": {

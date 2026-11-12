@@ -54,12 +54,6 @@
             },
             "flush_dns_cache": {
                 "name": "DNS-Cache leeren"
-            },
-            "provider_healthcheck": {
-                "name": "{provider_name} prüfen"
-            },
-            "default_proxy_group_healthcheck": {
-                "name": "Standard-Proxygruppe prüfen"
             }
         },
         "select": {

@@ -70,7 +70,7 @@ Core capability is automatically detected at entry load, and unsupported entitie
 
 - Proxy group and mode selectors
 - Traffic, connection and memory sensors
-- Provider counters and health-check buttons
+- Provider counters
 - DNS and FakeIP cache flush buttons
 
 ### 2. Actions (Service Calls)

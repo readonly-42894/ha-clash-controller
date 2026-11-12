@@ -54,12 +54,6 @@
           },
           "flush_dns_cache": {
             "name": "Flush DNS Cache"
-          },
-          "provider_healthcheck": {
-            "name": "{provider_name} Healthcheck"
-          },
-          "default_proxy_group_healthcheck": {
-            "name": "Default Proxy Group Healthcheck"
           }
         },
         "select": {

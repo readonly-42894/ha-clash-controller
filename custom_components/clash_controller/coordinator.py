@@ -7,7 +7,6 @@ import re
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
-from urllib.parse import quote
 
 from clash_controller_api import (
     APIAuthError,
@@ -34,7 +33,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-DEFAULT_HEALTHCHECK_TIMEOUT_MS = 5000
 CORE_DATA_KEYS = frozenset(
     {
         "traffic",
@@ -191,10 +189,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
 
         return data
 
-    @staticmethod
-    def _slugify(value: str) -> str:
-        return re.sub(r"[^a-z0-9_]+", "_", value.lower().replace(" ", "_")).strip("_")
-
     def _build_entity_data(self, response: dict[str, Any]) -> list[ClashEntityData]:
         """Construct entity descriptions from API response."""
         capabilities = self.api.capabilities or {}
@@ -223,9 +217,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
                     response.get("providers_rules")
                     if capabilities.get("providers_rules")
                     else None,
-                    provider_healthcheck_enabled=capabilities.get(
-                        "provider_healthcheck", False
-                    ),
                 )
             )
         if capabilities.get("cache_fakeip_flush"):
@@ -433,16 +424,8 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         self,
         providers_proxies: dict[str, Any] | None,
         providers_rules: dict[str, Any] | None,
-        provider_healthcheck_enabled: bool,
     ) -> list[ClashEntityData]:
-        """Create entities for provider metrics and actions."""
-
-        def _safe_timeout(value: Any) -> int:
-            try:
-                timeout = int(value)
-            except (TypeError, ValueError):
-                return DEFAULT_HEALTHCHECK_TIMEOUT_MS
-            return timeout if timeout > 0 else DEFAULT_HEALTHCHECK_TIMEOUT_MS
+        """Create entities for provider metrics."""
 
         proxy_provider_map = (
             providers_proxies.get("providers")
@@ -474,56 +457,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
                         translation_key=f"{provider_type}_provider_count",
                         entity_category=EntityCategory.DIAGNOSTIC,
                         unique_key=f"{provider_type}_provider_count",
-                    )
-                )
-
-        if provider_healthcheck_enabled and proxy_provider_map is not None:
-            for provider_name, provider_detail in proxy_provider_map.items():
-                encoded = quote(provider_name, safe="")
-                slug = self._slugify(provider_name) or encoded.lower().replace("%", "_")
-                translation_key = (
-                    "default_proxy_group_healthcheck"
-                    if provider_name.strip().lower() == "default"
-                    else "provider_healthcheck"
-                )
-                placeholders = (
-                    None
-                    if translation_key == "default_proxy_group_healthcheck"
-                    else {"provider_name": provider_name}
-                )
-                if not isinstance(provider_detail, dict):
-                    provider_detail = {}
-                health_check_config = provider_detail.get("healthCheck")
-                if not isinstance(health_check_config, dict):
-                    health_check_config = {}
-
-                test_url = provider_detail.get("testUrl")
-                if not isinstance(test_url, str) or not test_url.strip():
-                    test_url = health_check_config.get("url")
-                if not isinstance(test_url, str) or not test_url.strip():
-                    test_url = "https://www.gstatic.com/generate_204"
-
-                timeout_value = health_check_config.get("timeout")
-                if timeout_value is None:
-                    timeout_value = provider_detail.get("timeout")
-                timeout = _safe_timeout(timeout_value)
-                common_params = {"url": test_url, "timeout": timeout}
-                action = {
-                    "method": self.api.async_request,
-                    "args": ("GET", f"providers/proxies/{encoded}/healthcheck"),
-                    "kwargs": {"params": common_params},
-                }
-                entity_data.append(
-                    ClashEntityData(
-                        name=None,
-                        entity_type="provider_healthcheck_button",
-                        icon="mdi:stethoscope",
-                        translation_key=translation_key,
-                        translation_placeholders=placeholders,
-                        entity_category=EntityCategory.DIAGNOSTIC,
-                        enabled_default=False,
-                        action=action,
-                        unique_key=f"provider_healthcheck_{slug}",
                     )
                 )
 

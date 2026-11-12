@@ -316,7 +316,7 @@ async def test_offline_start_retries_without_probing(hass, backend):
 
 async def test_entities_added_after_first_refresh(hass, backend):
     api = backend[0](HOST, "")
-    api.capabilities.update(providers_proxies=True, provider_healthcheck=True)
+    api.capabilities.update(providers_proxies=True)
     api.payload.pop("memory")
     api.payload.pop("proxies")
     api.payload["providers_proxies"] = {"providers": {}}
@@ -339,15 +339,13 @@ async def test_entities_added_after_first_refresh(hass, backend):
     await poll(hass)
     after = registered()
     assert before.items() <= after.items()
-    assert len(after) == len(before) + 4
+    assert len(after) == len(before) + 3
     memory = entity_id(hass, entry, "_memory_used")
     group = entity_id(hass, entry, "_a/b_中文")
     automatic = entity_id(hass, entry, "_auto")
-    button = entity_id(hass, entry, "_provider_healthcheck_new_provider")
     assert hass.states.get(memory).state != STATE_UNAVAILABLE
     assert hass.states.get(group).state == "DIRECT"
     assert hass.states.get(automatic).state == "DIRECT"
-    assert registry.async_get(button).disabled_by is er.RegistryEntryDisabler.INTEGRATION
 
     api.payload = {"traffic": PAYLOAD["traffic"]}
     await poll(hass, 22)

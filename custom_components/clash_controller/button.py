@@ -24,7 +24,6 @@ async def async_setup_entry(
     button_types = {
         "fakeip_flush_button": ButtonEntityBase,
         "dns_flush_button": ButtonEntityBase,
-        "provider_healthcheck_button": ButtonEntityBase,
     }
 
     known_ids: set[str] = set()
