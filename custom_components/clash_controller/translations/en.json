@@ -37,7 +37,8 @@
                 "title": "Clash Controller Options",
                 "data": {
                     "scan_interval": "Scan Interval (seconds)",
-                    "concurrent_connections": "Concurrent Connections"
+                    "concurrent_connections": "Concurrent Connections",
+                    "log_window": "Log Window (seconds)"
                 }
             }
         }
@@ -80,6 +81,12 @@
           },
           "rule_provider_count": {
             "name": "Rule Provider Count"
+          },
+          "warning_log_count": {
+            "name": "Warning Logs"
+          },
+          "error_log_count": {
+            "name": "Error Logs"
           }
         }
     },

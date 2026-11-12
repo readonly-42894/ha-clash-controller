@@ -67,6 +67,7 @@ async def test_real_process_outage_recovers_on_poll(hass, running_core):
     ids = [item.entity_id for item in entities if item.disabled_by is None]
     now = dt_util.utcnow()
     try:
+        await coordinator.async_stop_log_stream()
         running_core.stop()
         async_fire_time_changed(
             hass, now + coordinator.update_interval + timedelta(seconds=1)

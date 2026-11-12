@@ -37,7 +37,8 @@
                 "title": "Clash 控制器选项",
                 "data": {
                     "scan_interval": "扫描间隔（秒）",
-                    "concurrent_connections": "并发连接数"
+                    "concurrent_connections": "并发连接数",
+                    "log_window": "日志窗口（秒）"
                 }
             }
         }
@@ -80,6 +81,12 @@
           },
           "rule_provider_count": {
             "name": "规则集合数量"
+          },
+          "warning_log_count": {
+            "name": "警告日志数"
+          },
+          "error_log_count": {
+            "name": "错误日志数"
           }
         }
     },

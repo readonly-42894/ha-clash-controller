@@ -34,6 +34,8 @@ async def async_get_config_entry_diagnostics(
                 if coordinator.update_interval
                 else None
             ),
+            "log_window_seconds": coordinator.log_window,
+            "log_counts": coordinator.log_counts,
             "entity_counts": dict(entity_counts),
         },
         "api": {

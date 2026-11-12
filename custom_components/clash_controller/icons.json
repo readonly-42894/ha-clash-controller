@@ -24,6 +24,12 @@
       },
       "rule_provider_count": {
         "default": "mdi:file-document-outline"
+      },
+      "warning_log_count": {
+        "default": "mdi:alert-outline"
+      },
+      "error_log_count": {
+        "default": "mdi:alert-circle-outline"
       }
     }
   }

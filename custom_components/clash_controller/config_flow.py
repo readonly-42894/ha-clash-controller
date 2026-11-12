@@ -31,11 +31,15 @@ from .const import (
     CONF_API_URL,
     CONF_BEAR_TOKEN,
     CONF_CONCURRENT_CONNECTIONS,
+    CONF_LOG_WINDOW,
     CONF_USE_SSL,
     DEFAULT_CONCURRENT_CONNECTIONS,
+    DEFAULT_LOG_WINDOW,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    MAX_LOG_WINDOW,
     MIN_CONCURRENT_CONNECTIONS,
+    MIN_LOG_WINDOW,
     MIN_SCAN_INTERVAL,
 )
 
@@ -196,6 +200,13 @@ class ClashControllerOptionsFlow(OptionsFlowWithReload):
                         ),
                     ): vol.All(
                         vol.Coerce(int), vol.Clamp(min=MIN_CONCURRENT_CONNECTIONS)
+                    ),
+                    vol.Required(
+                        CONF_LOG_WINDOW,
+                        default=user_input.get(CONF_LOG_WINDOW, DEFAULT_LOG_WINDOW),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Clamp(min=MIN_LOG_WINDOW, max=MAX_LOG_WINDOW),
                     ),
                 }
             ),

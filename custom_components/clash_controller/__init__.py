@@ -47,6 +47,9 @@ async def async_setup_entry(
     await coordinator.async_config_entry_first_refresh()
 
     config_entry.runtime_data = RuntimeData(coordinator)
+    if (coordinator.api.capabilities or {}).get("ws_logs"):
+        coordinator.async_start_log_stream()
+        config_entry.async_on_unload(coordinator.async_stop_log_stream)
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     return True
 

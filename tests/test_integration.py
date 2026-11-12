@@ -1,5 +1,6 @@
 """HA lifecycle and user-facing behavior, independent of the core implementation."""
 
+import asyncio
 import json
 import logging
 from copy import deepcopy
@@ -72,7 +73,19 @@ def backend(monkeypatch):
                 ),
                 async_close=AsyncMock(),
                 async_request=AsyncMock(return_value={}),
+                log_queue=asyncio.Queue(),
+                log_processed=asyncio.Event(),
             )
+
+            async def stream_logs(level: str = "warning"):
+                while True:
+                    entry = await api.log_queue.get()
+                    if entry is None:
+                        return
+                    yield entry
+                    api.log_processed.set()
+
+            api.async_stream_logs = stream_logs
 
             async def fetch():
                 return FetchResult(deepcopy(api.payload), {})
@@ -103,7 +116,7 @@ async def load_entry(hass, backend, host=HOST):
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
     return entry
 
@@ -120,7 +133,7 @@ def entity_id(hass, entry, suffix):
 
 async def poll(hass, seconds=11):
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=seconds))
-    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.async_block_till_done()
 
 
 @pytest.mark.parametrize(
@@ -225,7 +238,7 @@ async def test_entry_migration_removes_runtime_probe_data(hass, backend):
     entry.add_to_hass(hass)
 
     assert await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.async_block_till_done()
     assert entry.minor_version == 2
     assert "capabilities" not in entry.data
     assert "available_endpoints" not in entry.data
@@ -307,6 +320,7 @@ async def test_offline_start_retries_without_probing(hass, backend):
     api.async_fetch_data.assert_not_awaited()
     api.async_validate_connection.side_effect = None
     await poll(hass, 120)
+    await hass.async_block_till_done(wait_background_tasks=True)
     assert entry.state is ConfigEntryState.LOADED
 
 
@@ -371,7 +385,7 @@ async def test_stored_auth_failure_starts_reauthentication(hass, backend):
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reauth_successful"
     assert entry.data["bearer_token"] == "replacement-token"
-    await hass.async_block_till_done(wait_background_tasks=True)
+    await hass.async_block_till_done()
     assert entry.state is ConfigEntryState.LOADED
     assert await hass.config_entries.async_unload(entry.entry_id)
 
@@ -419,13 +433,14 @@ async def test_options_update(hass, backend):
     entry = await load_entry(hass, backend)
     result = await hass.config_entries.options.async_init(
         entry.entry_id,
-        data={"scan_interval": 20, "concurrent_connections": 3},
+        data={"scan_interval": 20, "concurrent_connections": 3, "log_window": 600},
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     await hass.async_block_till_done()
     assert entry.data["bearer_token"] == INPUT["bearer_token"]
     assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=20)
     assert entry.runtime_data.coordinator.concurrent_connections == 3
+    assert entry.runtime_data.coordinator.log_window == 600
     assert (
         hass.states.get(entity_id(hass, entry, "_upload_speed")).state
         != STATE_UNAVAILABLE
@@ -631,3 +646,49 @@ async def test_button_action_errors_are_translated(hass, backend, api_error):
             blocking=True,
         )
     assert error.value.translation_key == "button_action_failed"
+
+
+async def push_log(api, *levels):
+    for level in levels:
+        api.log_queue.put_nowait(SimpleNamespace(level=level, payload="test"))
+        await asyncio.wait_for(api.log_processed.wait(), 2)
+        api.log_processed.clear()
+
+
+async def test_log_entities_require_capability(hass, backend):
+    entry = await load_entry(hass, backend)
+    registry = er.async_get(hass)
+    assert not [
+        item
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if item.unique_id.endswith(("_warning_log_count", "_error_log_count"))
+    ]
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_log_counters_follow_window(hass, backend):
+    api = backend[0](HOST, "")
+    api.capabilities["ws_logs"] = True
+    entry = await load_entry(hass, backend)
+    coordinator = entry.runtime_data.coordinator
+    warning = entity_id(hass, entry, "_warning_log_count")
+    error = entity_id(hass, entry, "_error_log_count")
+    assert hass.states.get(warning).state == "0"
+    assert hass.states.get(error).state == "0"
+    assert hass.states.get(warning).attributes["window_seconds"] == 300
+    task = coordinator._log_stream_task
+    assert task is not None
+
+    await push_log(api, "warning", "warn", "error", "info", "debug")
+    await poll(hass)
+    assert hass.states.get(warning).state == "2"
+    assert hass.states.get(error).state == "1"
+
+    coordinator.log_window = 0
+    await poll(hass)
+    assert hass.states.get(warning).state == "0"
+    assert hass.states.get(error).state == "0"
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert task.cancelled()

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+from collections import deque
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -14,6 +17,7 @@ from clash_controller_api import (
     APIConnectionError,
     APITimeoutError,
     ClashAPI,
+    ClashAPIError,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_SCAN_INTERVAL
@@ -24,12 +28,18 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_CONCURRENT_CONNECTIONS,
+    CONF_LOG_WINDOW,
     DEFAULT_CONCURRENT_CONNECTIONS,
+    DEFAULT_LOG_WINDOW,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    LOG_LEVELS,
+    LOG_RECONNECT_INITIAL,
+    LOG_RECONNECT_MAX,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -105,6 +115,12 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         )
         self._data_by_unique_id: dict[str, ClashEntityData] = {}
         self._failed_endpoints: set[str] = set()
+
+        self.log_window = config_entry.options.get(CONF_LOG_WINDOW, DEFAULT_LOG_WINDOW)
+        self._log_events: dict[str, deque[float]] = {
+            level: deque() for level in LOG_LEVELS
+        }
+        self._log_stream_task: asyncio.Task[None] | None = None
 
     async def _async_setup(self) -> None:
         """Load data that remains stable for this coordinator instance."""
@@ -187,6 +203,98 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
 
         return data
 
+    def async_start_log_stream(self) -> None:
+        """Start the background log subscription."""
+        if self._log_stream_task is not None:
+            return
+        self._log_stream_task = self.config_entry.async_create_background_task(
+            self.hass,
+            self._async_stream_logs(),
+            f"{DOMAIN} log stream",
+        )
+
+    async def async_stop_log_stream(self) -> None:
+        """Stop the background log subscription."""
+        task = self._log_stream_task
+        self._log_stream_task = None
+        if task is None:
+            return
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+    async def _async_stream_logs(self) -> None:
+        """Consume core logs and reconnect with backoff."""
+        delay = LOG_RECONNECT_INITIAL
+        while True:
+            try:
+                async for entry in self.api.async_stream_logs(level="warning"):
+                    delay = LOG_RECONNECT_INITIAL
+                    self._record_log(entry.level)
+            except asyncio.CancelledError:
+                raise
+            except APIAuthError:
+                _LOGGER.debug(
+                    "Log stream authentication failed for entry %s",
+                    self.config_entry.entry_id,
+                )
+                return
+            except ClashAPIError as err:
+                _LOGGER.debug(
+                    "Log stream disconnected for entry %s: %s",
+                    self.config_entry.entry_id,
+                    err,
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Unexpected log stream failure for entry %s",
+                    self.config_entry.entry_id,
+                )
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, LOG_RECONNECT_MAX)
+
+    def _record_log(self, level: str) -> None:
+        """Record one log event inside the sliding window."""
+        normalized = level.lower()
+        if normalized == "warn":
+            normalized = "warning"
+        if normalized not in self._log_events:
+            return
+        now = dt_util.utcnow().timestamp()
+        self._log_events[normalized].append(now)
+        self._prune_log_events(now)
+
+    def _prune_log_events(self, now: float | None = None) -> None:
+        """Drop log events older than the configured window."""
+        if now is None:
+            now = dt_util.utcnow().timestamp()
+        boundary = now - self.log_window
+        for events in self._log_events.values():
+            while events and events[0] <= boundary:
+                events.popleft()
+
+    def _build_log_entities(self) -> list[ClashEntityData]:
+        """Create sliding-window log counters."""
+        self._prune_log_events()
+        return [
+            ClashEntityData(
+                name=None,
+                state=len(self._log_events[level]),
+                entity_type="log_count_sensor",
+                translation_key=f"{level}_log_count",
+                entity_category=EntityCategory.DIAGNOSTIC,
+                attributes={"window_seconds": self.log_window},
+                unique_key=f"{level}_log_count",
+            )
+            for level in LOG_LEVELS
+        ]
+
+    @property
+    def log_counts(self) -> dict[str, int]:
+        """Return the current per-level log counts."""
+        self._prune_log_events()
+        return {level: len(events) for level, events in self._log_events.items()}
+
     def _build_entity_data(self, response: dict[str, Any]) -> list[ClashEntityData]:
         """Construct entity descriptions from API response."""
         capabilities = self.api.capabilities or {}
@@ -202,6 +310,8 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             )
         if capabilities.get("memory"):
             entity_data.extend(self._build_memory_entities(response.get("memory", {})))
+        if capabilities.get("ws_logs"):
+            entity_data.extend(self._build_log_entities())
         if capabilities.get("providers_proxies") or capabilities.get("providers_rules"):
             entity_data.extend(
                 self._build_provider_entities(

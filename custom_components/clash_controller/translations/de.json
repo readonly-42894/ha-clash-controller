@@ -37,7 +37,8 @@
                 "title": "Clash Controller – Optionen",
                 "data": {
                     "scan_interval": "Abfrageintervall (Sekunden)",
-                    "concurrent_connections": "Parallele Verbindungen"
+                    "concurrent_connections": "Parallele Verbindungen",
+                    "log_window": "Protokollfenster (Sekunden)"
                 }
             }
         }
@@ -80,6 +81,12 @@
             },
             "rule_provider_count": {
                 "name": "Regel-Provider"
+            },
+            "warning_log_count": {
+                "name": "Warnungen"
+            },
+            "error_log_count": {
+                "name": "Fehler"
             }
         }
     },

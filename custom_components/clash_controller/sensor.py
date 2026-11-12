@@ -77,6 +77,18 @@ SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
         suggested_unit_of_measurement=UnitOfInformation.MEGABYTES,
         suggested_display_precision=0,
     ),
+    "warning_log_count": SensorEntityDescription(
+        key="warning_log_count",
+        translation_key="warning_log_count",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+    ),
+    "error_log_count": SensorEntityDescription(
+        key="error_log_count",
+        translation_key="error_log_count",
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+    ),
 }
 
 

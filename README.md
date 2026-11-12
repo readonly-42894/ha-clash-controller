@@ -70,7 +70,13 @@ Core capability is automatically detected at entry load, and unsupported entitie
 
 - Traffic, connection and memory sensors
 - Provider counters
+- Warning and error log counters over a configurable sliding window
 - DNS and FakeIP cache flush buttons
+
+Log counters require the core's `/logs` WebSocket endpoint. Counters reset when
+the config entry reloads and do not count messages received while the log
+stream is disconnected. The window length is configured in the integration
+options (default 300 seconds).
 
 ### 2. Actions (Service Calls)
 
