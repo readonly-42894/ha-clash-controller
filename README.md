@@ -73,6 +73,13 @@ Core capability is automatically detected at entry load, and unsupported entitie
 - Warning and error log counters over a configurable sliding window
 - DNS and FakeIP cache flush buttons
 
+Traffic, memory and connection sensors subscribe to the core's WebSocket
+endpoints (`/traffic`, `/memory`, `/connections`) when the core supports them
+and update as soon as a frame arrives. Cores without a streaming endpoint fall
+back to HTTP polling. The polling interval also refreshes slower data such as
+proxies, configuration and providers, and it takes over a streaming endpoint
+automatically while that stream is disconnected.
+
 Log counters require the core's `/logs` WebSocket endpoint. Counters reset when
 the config entry reloads and do not count messages received while the log
 stream is disconnected. The window length is configured in the integration
