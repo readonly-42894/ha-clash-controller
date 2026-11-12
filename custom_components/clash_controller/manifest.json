@@ -10,7 +10,7 @@
     "issue_tracker": "https://github.com/myhades/ha-clash-controller/issues",
     "loggers": ["clash_controller_api"],
     "requirements": [
-        "clash-controller-api==0.1.2"
+        "clash-controller-api@git+https://git.o0kam1.dev/HumanlessCode/clash-controller-api.git@4ef695f8aea84b7a979b942d678b26503db665c5"
     ],
     "version": "0.3.0"
 }
