@@ -7,12 +7,11 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import ClashControllerConfigEntry
-from .const import CONF_API_URL, CONF_BEAR_TOKEN, CONF_STREAMING_PROXY
+from .const import CONF_API_URL, CONF_BEAR_TOKEN
 
 TO_REDACT = {
     CONF_API_URL,
     CONF_BEAR_TOKEN,
-    CONF_STREAMING_PROXY,
     "title",
     "unique_id",
 }

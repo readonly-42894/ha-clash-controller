@@ -10,14 +10,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import (
-    CONF_STREAMING_DETECTION,
-    DEFAULT_STREAMING_DETECTION,
-    DOMAIN,
-)
+from .const import DOMAIN
 from .coordinator import ClashControllerCoordinator
 from .services import ClashServicesSetup
-from .streaming_coordinator import StreamingCoordinator
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -33,7 +28,6 @@ class RuntimeData:
     """Class to hold integration data."""
 
     coordinator: ClashControllerCoordinator
-    streaming_coordinator: StreamingCoordinator | None
 
 
 type ClashControllerConfigEntry = ConfigEntry[RuntimeData]
@@ -53,25 +47,8 @@ async def async_setup_entry(
     coordinator = ClashControllerCoordinator(hass, config_entry)
     await coordinator.async_config_entry_first_refresh()
 
-    streaming_coordinator: StreamingCoordinator | None = None
-    if config_entry.options.get(CONF_STREAMING_DETECTION, DEFAULT_STREAMING_DETECTION):
-        assert coordinator.device_registry_id is not None
-        streaming_coordinator = StreamingCoordinator(
-            hass,
-            config_entry,
-            coordinator.device_id,
-            coordinator.device_registry_id,
-        )
-
-    config_entry.runtime_data = RuntimeData(coordinator, streaming_coordinator)
+    config_entry.runtime_data = RuntimeData(coordinator)
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
-    if streaming_coordinator is not None:
-        config_entry.async_create_background_task(
-            hass,
-            streaming_coordinator.async_refresh(),
-            "clash_controller streaming initial refresh",
-            eager_start=False,
-        )
     return True
 
 

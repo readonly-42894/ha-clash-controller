@@ -77,7 +77,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
     """A coordinator to fetch data from the Clash API."""
 
     device: DeviceInfo | None = None
-    device_registry_id: str | None = None
 
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the Clash Controller coordinator."""
@@ -121,13 +120,9 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             raise UpdateFailed(err) from err
         await self.api.async_detect_capabilities(force=True)
         self.device = await self._get_device()
-        self.device_registry_id = (
-            dr.async_get(self.hass)
-            .async_get_or_create(
-                config_entry_id=self.config_entry.entry_id,
-                **self.device,
-            )
-            .id
+        dr.async_get(self.hass).async_get_or_create(
+            config_entry_id=self.config_entry.entry_id,
+            **self.device,
         )
 
     async def _get_device(self) -> DeviceInfo:

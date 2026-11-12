@@ -1,14 +1,12 @@
 """HA lifecycle and user-facing behavior, independent of the core implementation."""
 
-import asyncio
 import json
 import logging
 from copy import deepcopy
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
-import aiohttp
 import pytest
 from clash_controller_api import (
     APIAuthError,
@@ -34,11 +32,6 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.clash_controller.const import DOMAIN
 from custom_components.clash_controller.diagnostics import (
     async_get_config_entry_diagnostics,
-)
-from custom_components.clash_controller.streaming import (
-    StreamingProxyAuthError,
-    StreamingProxyConnectionError,
-    StreamingProxyTimeoutError,
 )
 
 HOST = "http://controller.local:9090/"
@@ -118,7 +111,7 @@ async def load_entry(hass, backend, host=HOST):
         title=host,
         data={**INPUT, "api_url": host},
         unique_id=host,
-        options={"scan_interval": 10, "streaming_detection": False},
+        options={"scan_interval": 10},
     )
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -172,66 +165,61 @@ async def test_config_flow_errors(hass, backend, error, key, caplog):
 
 
 async def test_flow_identity_reload_and_cleanup(hass, backend):
-    with patch(
-        "custom_components.clash_controller.streaming_coordinator.StreamingDetector"
-    ) as streaming:
-        streaming.return_value.async_fetch_data = AsyncMock(return_value={})
-        result = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}, data=dict(INPUT)
-        )
-        assert result["type"] is FlowResultType.CREATE_ENTRY
-        await hass.async_block_till_done()
-        entry = result["result"]
-        assert "capabilities" not in entry.data
-        assert "available_endpoints" not in entry.data
-        api = backend[1][HOST]
-        registry = er.async_get(hass)
-        before = {
-            item.unique_id: item.entity_id
-            for item in er.async_entries_for_config_entry(registry, entry.entry_id)
-        }
-        assert (
-            "http___controller_local_9090__device_traffic_sensor_upload_speed" in before
-        )
-        device = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)[
-            0
-        ]
-        assert device.identifiers == {(DOMAIN, "http___controller_local_9090__device")}
-        assert device.configuration_url == HOST
-        assert device.model_id == DOMAIN
-        duplicate = await hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": "user"}, data=dict(INPUT)
-        )
-        assert duplicate["type"] is FlowResultType.ABORT
-        assert duplicate["reason"] == "already_configured"
-        streaming.return_value.async_fetch_data.assert_not_awaited()
-        services = dict(hass.services.async_services_for_domain(DOMAIN))
-        assert await hass.config_entries.async_reload(entry.entry_id)
-        await hass.async_block_till_done()
-        assert all(
-            hass.services.async_services_for_domain(DOMAIN)[key] is value
-            for key, value in services.items()
-        )
-        assert {
-            item.unique_id: item.entity_id
-            for item in er.async_entries_for_config_entry(registry, entry.entry_id)
-        } == before
-        api.async_detect_capabilities.assert_awaited_with(force=True)
-        api.async_fetch_data.reset_mock()
-        api.async_validate_connection.reset_mock()
-        api.async_get_version.reset_mock()
-        api.async_detect_capabilities.reset_mock()
-        await poll(hass, 61)
-        api.async_fetch_data.assert_awaited_once()
-        api.async_validate_connection.assert_not_awaited()
-        api.async_get_version.assert_not_awaited()
-        api.async_detect_capabilities.assert_not_awaited()
-        assert await hass.config_entries.async_unload(entry.entry_id)
-        await hass.async_block_till_done()
-        api.async_fetch_data.reset_mock()
-        await poll(hass, 180)
-        api.async_fetch_data.assert_not_awaited()
-        assert hass.services.async_services_for_domain(DOMAIN)
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data=dict(INPUT)
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = result["result"]
+    assert "capabilities" not in entry.data
+    assert "available_endpoints" not in entry.data
+    api = backend[1][HOST]
+    registry = er.async_get(hass)
+    before = {
+        item.unique_id: item.entity_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
+    assert (
+        "http___controller_local_9090__device_traffic_sensor_upload_speed" in before
+    )
+    device = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)[
+        0
+    ]
+    assert device.identifiers == {(DOMAIN, "http___controller_local_9090__device")}
+    assert device.configuration_url == HOST
+    assert device.model_id == DOMAIN
+    duplicate = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data=dict(INPUT)
+    )
+    assert duplicate["type"] is FlowResultType.ABORT
+    assert duplicate["reason"] == "already_configured"
+    services = dict(hass.services.async_services_for_domain(DOMAIN))
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert all(
+        hass.services.async_services_for_domain(DOMAIN)[key] is value
+        for key, value in services.items()
+    )
+    assert {
+        item.unique_id: item.entity_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    } == before
+    api.async_detect_capabilities.assert_awaited_with(force=True)
+    api.async_fetch_data.reset_mock()
+    api.async_validate_connection.reset_mock()
+    api.async_get_version.reset_mock()
+    api.async_detect_capabilities.reset_mock()
+    await poll(hass, 61)
+    api.async_fetch_data.assert_awaited_once()
+    api.async_validate_connection.assert_not_awaited()
+    api.async_get_version.assert_not_awaited()
+    api.async_detect_capabilities.assert_not_awaited()
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    await hass.async_block_till_done()
+    api.async_fetch_data.reset_mock()
+    await poll(hass, 180)
+    api.async_fetch_data.assert_not_awaited()
+    assert hass.services.async_services_for_domain(DOMAIN)
 
 
 async def test_entry_migration_removes_runtime_probe_data(hass, backend):
@@ -446,244 +434,31 @@ async def test_numeric_entities_and_missing_values(hass, backend):
         assert (hass.states.get(upload).state == STATE_UNAVAILABLE) is (value != 0)
 
 
-@pytest.mark.parametrize("finish_check", [True, False])
-async def test_streaming_first_refresh_does_not_block_setup(hass, backend, finish_check):
-    started = asyncio.Event()
-    release = asyncio.Event()
-    cancelled = asyncio.Event()
-
-    async def fetch(services):
-        assert services == {"netflix"}
-        started.set()
-        try:
-            await release.wait()
-        except asyncio.CancelledError:
-            cancelled.set()
-            raise
-        return {"netflix": {"state": "available"}}
-
-    entry = MockConfigEntry(
-        domain=DOMAIN,
-        data=dict(INPUT),
-        options={"streaming_detection": True, "streaming_proxy": "proxy.local:7890"},
+async def test_options_update(hass, backend):
+    entry = await load_entry(hass, backend)
+    result = await hass.config_entries.options.async_init(
+        entry.entry_id,
+        data={"scan_interval": 20, "concurrent_connections": 3},
     )
-    entry.add_to_hass(hass)
-    with patch(
-        "custom_components.clash_controller.streaming_coordinator."
-        "StreamingDetector.async_fetch_data",
-        side_effect=fetch,
-    ):
-        assert await asyncio.wait_for(hass.config_entries.async_setup(entry.entry_id), 2)
-        await asyncio.wait_for(hass.async_block_till_done(), 2)
-        await asyncio.wait_for(started.wait(), 1)
-        assert entry.state is ConfigEntryState.LOADED
-        netflix = entity_id(hass, entry, "_streaming_detection_netflix")
-        assert hass.states.get(netflix).state == "unknown"
-        assert (
-            hass.states.get(entity_id(hass, entry, "_upload_speed")).state
-            != STATE_UNAVAILABLE
-        )
-        if finish_check:
-            release.set()
-            await hass.async_block_till_done(wait_background_tasks=True)
-            assert hass.states.get(netflix).state == "available"
-            assert not cancelled.is_set()
-        assert await hass.config_entries.async_unload(entry.entry_id)
-        await hass.async_block_till_done(wait_background_tasks=True)
-        assert cancelled.is_set() is (not finish_check)
-
-
-async def test_options_and_streaming_isolation(hass, backend):
-    entry = await load_entry(hass, backend)
-    options = {
-        "scan_interval": 20,
-        "concurrent_connections": 3,
-        "streaming_detection": True,
-        "streaming_proxy": "http://user%40name:p%3A%40ss@proxy.local:7890",
-    }
-    with (
-        patch(
-            "custom_components.clash_controller.config_flow."
-            "StreamingDetector.async_validate_proxy",
-            new=AsyncMock(return_value=None),
-        ),
-        patch(
-            "custom_components.clash_controller.streaming_coordinator.StreamingDetector"
-        ) as detector,
-    ):
-        detector.return_value.async_fetch_data = AsyncMock(
-            return_value={
-                "netflix": {
-                    "state": "available",
-                    "status_code": 200,
-                    "latency": 0.1,
-                }
-            }
-        )
-        result = await hass.config_entries.options.async_init(
-            entry.entry_id, data=options
-        )
-        assert result["type"] is FlowResultType.CREATE_ENTRY
-        await hass.async_block_till_done()
-        assert entry.data["bearer_token"] == INPUT["bearer_token"]
-        assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=20)
-        assert entry.runtime_data.coordinator.concurrent_connections == 3
-        streaming_coordinator = entry.runtime_data.streaming_coordinator
-        assert streaming_coordinator is not None
-        assert streaming_coordinator.update_interval == timedelta(seconds=20)
-        proxy = detector.call_args.args[1]
-        assert str(proxy.url) == "http://proxy.local:7890"
-        assert proxy.headers == {
-            "Proxy-Authorization": aiohttp.encode_basic_auth("user@name", "p:@ss")
-        }
-        detector.return_value.async_fetch_data.assert_awaited_with({"netflix"})
-        registry = er.async_get(hass)
-        streaming_entries = [
-            item
-            for item in er.async_entries_for_config_entry(registry, entry.entry_id)
-            if "_streaming_detection_" in item.unique_id
-        ]
-        assert len(streaming_entries) == 8
-        assert (
-            next(
-                item
-                for item in streaming_entries
-                if item.unique_id.endswith("_netflix")
-            ).disabled_by
-            is None
-        )
-        assert all(
-            item.disabled_by is not None
-            for item in streaming_entries
-            if not item.unique_id.endswith("_netflix")
-        )
-
-        devices = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
-        clash_device = next(
-            item
-            for item in devices
-            if (DOMAIN, "http___controller_local_9090__device") in item.identifiers
-        )
-        streaming_device = next(
-            item
-            for item in devices
-            if (DOMAIN, "http___controller_local_9090__device_streaming")
-            in item.identifiers
-        )
-        assert streaming_device.via_device_id == clash_device.id
-        assert all(item.device_id == streaming_device.id for item in streaming_entries)
-        netflix_entity_id = entity_id(hass, entry, "_streaming_detection_netflix")
-        assert hass.states.get(netflix_entity_id).state == "available"
-
-        prime_video = next(
-            item
-            for item in streaming_entries
-            if item.unique_id.endswith("_prime_video")
-        )
-        registry.async_update_entity(prime_video.entity_id, disabled_by=None)
-        detector.return_value.async_fetch_data.reset_mock()
-        api = backend[1][HOST]
-        api.async_fetch_data.reset_mock()
-        await streaming_coordinator.async_refresh()
-        detector.return_value.async_fetch_data.assert_awaited_with(
-            {"netflix", "prime_video"}
-        )
-        api.async_fetch_data.assert_not_awaited()
-
-        detector.return_value.async_fetch_data.reset_mock()
-        await entry.runtime_data.coordinator.async_refresh()
-        api.async_fetch_data.assert_awaited_once()
-        detector.return_value.async_fetch_data.assert_not_awaited()
-        assert (
-            hass.states.get(entity_id(hass, entry, "_upload_speed")).state
-            != STATE_UNAVAILABLE
-        )
-
-
-@pytest.mark.parametrize(
-    ("proxy_address", "side_effect", "error_key"),
-    [
-        ("", None, "invalid_proxy"),
-        ("proxy.local", None, "invalid_proxy"),
-        (
-            "proxy.local:7890",
-            StreamingProxyConnectionError(),
-            "cannot_connect_proxy",
-        ),
-        (
-            "proxy.local:7890",
-            StreamingProxyAuthError(),
-            "invalid_proxy_auth",
-        ),
-        (
-            "proxy.local:7890",
-            StreamingProxyTimeoutError(),
-            "proxy_timed_out",
-        ),
-    ],
-)
-async def test_streaming_proxy_options_errors(
-    hass, backend, proxy_address, side_effect, error_key
-):
-    entry = await load_entry(hass, backend)
-    options = {
-        "scan_interval": 20,
-        "concurrent_connections": 3,
-        "streaming_detection": True,
-        "streaming_proxy": proxy_address,
-    }
-
-    with patch(
-        "custom_components.clash_controller.config_flow."
-        "StreamingDetector.async_validate_proxy",
-        new=AsyncMock(side_effect=side_effect),
-    ):
-        result = await hass.config_entries.options.async_init(
-            entry.entry_id, data=options
-        )
-
-    assert result["type"] is FlowResultType.FORM
-    assert result["errors"] == {"base": error_key}
-    assert entry.options["streaming_detection"] is False
-
-
-async def test_disabled_streaming_does_not_validate_proxy(hass, backend):
-    entry = await load_entry(hass, backend)
-    options = {
-        "scan_interval": 20,
-        "concurrent_connections": 3,
-        "streaming_detection": False,
-        "streaming_proxy": "not-a-proxy",
-    }
-
-    with patch(
-        "custom_components.clash_controller.config_flow."
-        "StreamingDetector.async_validate_proxy",
-        new=AsyncMock(),
-    ) as validate:
-        result = await hass.config_entries.options.async_init(
-            entry.entry_id, data=options
-        )
-
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    validate.assert_not_awaited()
+    await hass.async_block_till_done()
+    assert entry.data["bearer_token"] == INPUT["bearer_token"]
+    assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=20)
+    assert entry.runtime_data.coordinator.concurrent_connections == 3
+    assert (
+        hass.states.get(entity_id(hass, entry, "_upload_speed")).state
+        != STATE_UNAVAILABLE
+    )
 
 
 async def test_diagnostics_redaction(hass, backend):
     entry = await load_entry(hass, backend)
-    proxy_address = "proxy-user:proxy-secret@proxy.local:7890"
-    hass.config_entries.async_update_entry(
-        entry,
-        options={**entry.options, "streaming_proxy": proxy_address},
-    )
     output = json.dumps(await async_get_config_entry_diagnostics(hass, entry))
     for secret in [
         INPUT["bearer_token"],
         HOST,
         "controller.local",
         "A/B 中文",
-        proxy_address,
-        "proxy-secret",
     ]:
         assert secret not in output
 

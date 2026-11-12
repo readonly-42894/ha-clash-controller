@@ -22,7 +22,7 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.const import CONF_SCAN_INTERVAL
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -31,23 +31,12 @@ from .const import (
     CONF_API_URL,
     CONF_BEAR_TOKEN,
     CONF_CONCURRENT_CONNECTIONS,
-    CONF_STREAMING_DETECTION,
-    CONF_STREAMING_PROXY,
     CONF_USE_SSL,
     DEFAULT_CONCURRENT_CONNECTIONS,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_STREAMING_DETECTION,
     DOMAIN,
     MIN_CONCURRENT_CONNECTIONS,
     MIN_SCAN_INTERVAL,
-)
-from .streaming import (
-    InvalidStreamingProxyError,
-    StreamingDetector,
-    StreamingProxyAuthError,
-    StreamingProxyConnectionError,
-    StreamingProxyTimeoutError,
-    parse_streaming_proxy,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,30 +56,6 @@ async def _test_connection(api: ClashAPI):
         _LOGGER.exception("Unexpected error validating controller connection")
         errors["base"] = "unknown"
     return errors
-
-
-async def _test_streaming_proxy(
-    hass: HomeAssistant, proxy_address: str
-) -> dict[str, str]:
-    """Validate a streaming proxy entered in the options flow."""
-    try:
-        proxy = parse_streaming_proxy(proxy_address)
-    except InvalidStreamingProxyError:
-        return {"base": "invalid_proxy"}
-
-    detector = StreamingDetector(async_get_clientsession(hass), proxy)
-    try:
-        await detector.async_validate_proxy()
-    except StreamingProxyAuthError:
-        return {"base": "invalid_proxy_auth"}
-    except StreamingProxyTimeoutError:
-        return {"base": "proxy_timed_out"}
-    except StreamingProxyConnectionError:
-        return {"base": "cannot_connect_proxy"}
-    except Exception:
-        _LOGGER.exception("Unexpected error validating streaming proxy")
-        return {"base": "unknown"}
-    return {}
 
 
 class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -210,16 +175,9 @@ class ClashControllerOptionsFlow(OptionsFlowWithReload):
     ) -> ConfigFlowResult:
         """Handle options flow."""
 
-        errors: dict[str, str] = {}
         if user_input is not None:
-            if user_input.get(CONF_STREAMING_DETECTION, False):
-                errors = await _test_streaming_proxy(
-                    self.hass, user_input.get(CONF_STREAMING_PROXY, "")
-                )
-            if not errors:
-                return self.async_create_entry(title="", data=user_input)
-        else:
-            user_input = dict(self.config_entry.options)
+            return self.async_create_entry(title="", data=user_input)
+        user_input = dict(self.config_entry.options)
 
         return self.async_show_form(
             step_id="init",
@@ -239,17 +197,6 @@ class ClashControllerOptionsFlow(OptionsFlowWithReload):
                     ): vol.All(
                         vol.Coerce(int), vol.Clamp(min=MIN_CONCURRENT_CONNECTIONS)
                     ),
-                    vol.Optional(
-                        CONF_STREAMING_DETECTION,
-                        default=user_input.get(
-                            CONF_STREAMING_DETECTION, DEFAULT_STREAMING_DETECTION
-                        ),
-                    ): cv.boolean,
-                    vol.Optional(
-                        CONF_STREAMING_PROXY,
-                        default=user_input.get(CONF_STREAMING_PROXY, ""),
-                    ): cv.string,
                 }
             ),
-            errors=errors,
         )

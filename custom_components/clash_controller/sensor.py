@@ -87,7 +87,6 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors for a config entry."""
     coordinator: ClashControllerCoordinator = config_entry.runtime_data.coordinator
-    streaming_coordinator = config_entry.runtime_data.streaming_coordinator
 
     known_ids: set[str] = set()
 
@@ -109,12 +108,6 @@ async def async_setup_entry(
 
     async_add_new_sensors()
     config_entry.async_on_unload(coordinator.async_add_listener(async_add_new_sensors))
-
-    if streaming_coordinator is not None:
-        async_add_entities(
-            StreamingSensor(streaming_coordinator, entity_data)
-            for entity_data in streaming_coordinator.data
-        )
 
 
 class SensorEntityBase(BaseEntity, SensorEntity):
@@ -158,20 +151,4 @@ class GroupSensor(SensorEntityBase):
     @property
     def native_value(self) -> str | None:
         """Return the selected proxy."""
-        return self.entity_data.state
-
-
-class StreamingSensor(SensorEntityBase):
-    """Streaming service detection sensor."""
-
-    _attr_device_class = SensorDeviceClass.ENUM
-
-    @property
-    def options(self) -> list[str] | None:
-        """Return the possible service states."""
-        return self.entity_data.options
-
-    @property
-    def native_value(self) -> str | None:
-        """Return the detected service state."""
         return self.entity_data.state

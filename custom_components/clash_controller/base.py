@@ -6,19 +6,16 @@ from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .coordinator import ClashControllerCoordinator, ClashEntityData
-from .streaming_coordinator import StreamingCoordinator
-
-type EntityCoordinator = ClashControllerCoordinator | StreamingCoordinator
 
 
-class BaseEntity(CoordinatorEntity[EntityCoordinator]):
+class BaseEntity(CoordinatorEntity[ClashControllerCoordinator]):
     """Base entity class."""
 
-    coordinator: EntityCoordinator
+    coordinator: ClashControllerCoordinator
     _attr_has_entity_name = True
 
     def __init__(
-        self, coordinator: EntityCoordinator, entity_data: ClashEntityData
+        self, coordinator: ClashControllerCoordinator, entity_data: ClashEntityData
     ) -> None:
         super().__init__(coordinator)
         self.entity_data = entity_data
