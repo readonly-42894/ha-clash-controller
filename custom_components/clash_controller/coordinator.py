@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from collections import deque
+from collections.abc import AsyncIterator, Callable
 from contextlib import suppress
 from dataclasses import dataclass
 from datetime import timedelta
@@ -27,6 +29,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -40,6 +43,11 @@ from .const import (
     LOG_LEVELS,
     LOG_RECONNECT_INITIAL,
     LOG_RECONNECT_MAX,
+    STREAM_ENDPOINT_CAPABILITIES,
+    STREAM_PUBLISH_INTERVAL,
+    STREAM_RECONNECT_INITIAL,
+    STREAM_RECONNECT_MAX,
+    STREAM_STALE_SECONDS,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -115,6 +123,10 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         )
         self._data_by_unique_id: dict[str, ClashEntityData] = {}
         self._failed_endpoints: set[str] = set()
+        self._latest: dict[str, Any] = {}
+        self._stream_tasks: dict[str, asyncio.Task[None]] = {}
+        self._stream_last_frame: dict[str, float] = {}
+        self._stream_publish_unsub: Callable[[], None] | None = None
 
         self.log_window = config_entry.options.get(CONF_LOG_WINDOW, DEFAULT_LOG_WINDOW)
         self._log_events: dict[str, deque[float]] = {
@@ -159,14 +171,23 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
 
     async def _async_update_data(self):
         """Fetch data from API endpoint."""
+        skip = self._streaming_keys()
+        capabilities = self.api.capabilities or {}
+        requested = {
+            key
+            for key in CORE_DATA_KEYS
+            if capabilities.get(key) and key not in skip
+        }
         try:
-            result = await self.api.async_fetch_data()
+            result = await self.api.async_fetch_data(skip=skip)
             response = result.data
             if any(
                 isinstance(error, APIAuthError) for error in result.errors.values()
             ):
                 raise ConfigEntryAuthFailed
-            if not CORE_DATA_KEYS.intersection(response):
+            if result.errors and not response:
+                raise UpdateFailed(next(iter(result.errors.values())))
+            if not CORE_DATA_KEYS.intersection(response) and not skip:
                 if result.errors:
                     raise UpdateFailed(next(iter(result.errors.values())))
                 raise UpdateFailed("No data returned from Clash core.")
@@ -175,7 +196,10 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         except Exception as err:
             raise UpdateFailed(err) from err
 
-        data = self._build_entity_data(response)
+        for key in requested - set(response):
+            self._latest.pop(key, None)
+        self._latest.update(response)
+        data = self._build_entity_data(self._latest)
         real_entities = [
             item
             for item in data
@@ -202,6 +226,145 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         self._failed_endpoints = failed_endpoints
 
         return data
+
+    def _streaming_keys(self) -> set[str]:
+        """Return endpoints whose websocket stream delivered a fresh frame."""
+        now = time.monotonic()
+        return {
+            key
+            for key, stamp in self._stream_last_frame.items()
+            if now - stamp <= STREAM_STALE_SECONDS
+        }
+
+    @property
+    def stream_status(self) -> dict[str, dict[str, Any]]:
+        """Return transport state for diagnostics."""
+        now = time.monotonic()
+        return {
+            key: {
+                "subscribed": True,
+                "last_frame_age_seconds": (
+                    round(now - self._stream_last_frame[key], 1)
+                    if key in self._stream_last_frame
+                    else None
+                ),
+            }
+            for key in sorted(self._stream_tasks)
+        }
+
+    def async_start_streams(self) -> None:
+        """Start the log and real-time websocket subscriptions."""
+        capabilities = self.api.capabilities or {}
+        if capabilities.get("ws_logs"):
+            self.async_start_log_stream()
+        if self._stream_tasks:
+            return
+        factories: dict[str, Callable[[], AsyncIterator[dict[str, Any]]]] = {
+            "traffic": self.api.async_stream_traffic,
+            "memory": self.api.async_stream_memory,
+            "connections": self.api.async_stream_connections,
+        }
+        for key, capability in STREAM_ENDPOINT_CAPABILITIES.items():
+            if not capabilities.get(capability):
+                continue
+            self._stream_tasks[key] = (
+                self.config_entry.async_create_background_task(
+                    self.hass,
+                    self._async_stream_endpoint(key, factories[key]),
+                    f"{DOMAIN} {key} stream",
+                )
+            )
+
+    async def async_stop_streams(self) -> None:
+        """Stop all background subscriptions."""
+        self._cancel_stream_publish()
+        await self.async_stop_log_stream()
+        tasks = list(self._stream_tasks.values())
+        self._stream_tasks.clear()
+        self._stream_last_frame.clear()
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            with suppress(asyncio.CancelledError):
+                await task
+
+    async def _async_stream_endpoint(
+        self,
+        key: str,
+        factory: Callable[[], AsyncIterator[dict[str, Any]]],
+    ) -> None:
+        """Consume one endpoint and reconnect with backoff."""
+        delay = STREAM_RECONNECT_INITIAL
+        while True:
+            try:
+                async for payload in factory():
+                    delay = STREAM_RECONNECT_INITIAL
+                    self._record_stream_frame(key, payload)
+            except asyncio.CancelledError:
+                raise
+            except APIAuthError:
+                _LOGGER.debug(
+                    "%s stream authentication failed for entry %s",
+                    key,
+                    self.config_entry.entry_id,
+                )
+                return
+            except ClashAPIError as err:
+                _LOGGER.debug(
+                    "%s stream disconnected for entry %s: %s",
+                    key,
+                    self.config_entry.entry_id,
+                    err,
+                )
+            except Exception:
+                _LOGGER.exception(
+                    "Unexpected %s stream failure for entry %s",
+                    key,
+                    self.config_entry.entry_id,
+                )
+            self._stream_last_frame.pop(key, None)
+            await asyncio.sleep(delay)
+            delay = min(delay * 2, STREAM_RECONNECT_MAX)
+
+    def _record_stream_frame(self, key: str, payload: dict[str, Any]) -> None:
+        """Merge a pushed frame into the snapshot used by entities."""
+        if not payload:
+            return
+        if key == "memory":
+            inuse = payload.get("inuse")
+            if (
+                isinstance(inuse, bool)
+                or not isinstance(inuse, (int, float))
+                or inuse <= 0
+            ):
+                return
+        self._latest[key] = payload
+        self._stream_last_frame[key] = time.monotonic()
+        self._queue_stream_publish()
+
+    def _queue_stream_publish(self) -> None:
+        """Coalesce pushed frames into one entity update per interval."""
+        if self._stream_publish_unsub is not None:
+            return
+        self._stream_publish_unsub = async_call_later(
+            self.hass,
+            STREAM_PUBLISH_INTERVAL,
+            self._async_publish_stream_data,
+        )
+
+    async def _async_publish_stream_data(self, _now: Any) -> None:
+        """Push the merged snapshot without resetting the poll schedule."""
+        self._stream_publish_unsub = None
+        if not self._latest:
+            return
+        self.data = self._build_entity_data(self._latest)
+        self.async_update_listeners()
+
+    def _cancel_stream_publish(self) -> None:
+        """Cancel a pending coalesced publish."""
+        if self._stream_publish_unsub is not None:
+            self._stream_publish_unsub()
+            self._stream_publish_unsub = None
 
     def async_start_log_stream(self) -> None:
         """Start the background log subscription."""

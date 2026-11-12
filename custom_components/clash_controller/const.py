@@ -28,6 +28,17 @@ LOG_RECONNECT_INITIAL = 5
 LOG_RECONNECT_MAX = 60
 LOG_LEVELS = ("warning", "error")
 
+# Data streams
+STREAM_RECONNECT_INITIAL = 5
+STREAM_RECONNECT_MAX = 60
+STREAM_PUBLISH_INTERVAL = 1.0
+STREAM_STALE_SECONDS = 15
+STREAM_ENDPOINT_CAPABILITIES = {
+    "traffic": "ws_traffic",
+    "memory": "ws_memory",
+    "connections": "ws_connections",
+}
+
 # Service names
 
 API_CALL_SERVICE_NAME = "api_call_service"

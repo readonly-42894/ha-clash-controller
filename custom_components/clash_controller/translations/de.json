@@ -36,7 +36,7 @@
             "init": {
                 "title": "Clash Controller – Optionen",
                 "data": {
-                    "scan_interval": "Abfrageintervall (Sekunden)",
+                    "scan_interval": "HTTP-Abfrageintervall (Sekunden)",
                     "concurrent_connections": "Parallele Verbindungen",
                     "log_window": "Protokollfenster (Sekunden)"
                 }

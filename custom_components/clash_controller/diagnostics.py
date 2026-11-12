@@ -36,6 +36,7 @@ async def async_get_config_entry_diagnostics(
             ),
             "log_window_seconds": coordinator.log_window,
             "log_counts": coordinator.log_counts,
+            "streams": coordinator.stream_status,
             "entity_counts": dict(entity_counts),
         },
         "api": {

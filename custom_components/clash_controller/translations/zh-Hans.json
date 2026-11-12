@@ -36,7 +36,7 @@
             "init": {
                 "title": "Clash 控制器选项",
                 "data": {
-                    "scan_interval": "扫描间隔（秒）",
+                    "scan_interval": "HTTP 轮询间隔（秒）",
                     "concurrent_connections": "并发连接数",
                     "log_window": "日志窗口（秒）"
                 }
