@@ -45,17 +45,6 @@ PAYLOAD = {
     "traffic": {"up": 1048576, "down": 0},
     "connections": {"uploadTotal": 1073741824, "downloadTotal": 0, "connections": []},
     "memory": {"inuse": 1048576},
-    "configs": {"mode": "rule"},
-    "proxies": {
-        "proxies": {
-            "A/B 中文": {
-                "name": "A/B 中文",
-                "type": "Selector",
-                "now": "DIRECT",
-                "all": ["DIRECT", "REJECT"],
-            }
-        }
-    },
 }
 
 
@@ -70,6 +59,7 @@ def backend(monkeypatch):
                 capabilities={
                     **dict.fromkeys(PAYLOAD, True),
                     "cache_fakeip_flush": True,
+                    "cache_dns_flush": True,
                     "restart": True,
                 },
                 available_endpoints=[],
@@ -242,8 +232,20 @@ async def test_entry_migration_removes_runtime_probe_data(hass, backend):
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 
-@pytest.mark.parametrize("scope", ["partial", "providers", "all"])
-async def test_polling_outage_and_recovery(hass, backend, scope, caplog):
+@pytest.mark.parametrize(
+    ("missing_endpoint", "missing_keys"),
+    [
+        ("providers_proxies", {"proxy_provider_count"}),
+        ("providers_rules", {"rule_provider_count"}),
+        (
+            "all",
+            {"upload_speed", "proxy_provider_count", "rule_provider_count"},
+        ),
+    ],
+)
+async def test_polling_outage_and_recovery(
+    hass, backend, missing_endpoint, missing_keys, caplog
+):
     caplog.set_level(logging.INFO, logger="custom_components.clash_controller.coordinator")
     api = backend[0](HOST, "")
     api.capabilities.update(providers_proxies=True, providers_rules=True)
@@ -252,10 +254,11 @@ async def test_polling_outage_and_recovery(hass, backend, scope, caplog):
         providers_rules={"providers": {"rule": {}}},
     )
     entry = await load_entry(hass, backend)
-    upload = entity_id(hass, entry, "_upload_speed")
-    group = entity_id(hass, entry, "_a/b_中文")
-    proxy_count = entity_id(hass, entry, "_proxy_provider_count")
-    rule_count = entity_id(hass, entry, "_rule_provider_count")
+    entities = {
+        "upload_speed": entity_id(hass, entry, "_upload_speed"),
+        "proxy_provider_count": entity_id(hass, entry, "_proxy_provider_count"),
+        "rule_provider_count": entity_id(hass, entry, "_rule_provider_count"),
+    }
     original = deepcopy(api.payload)
 
     async def fetch():
@@ -265,35 +268,30 @@ async def test_polling_outage_and_recovery(hass, backend, scope, caplog):
         )
 
     api.async_fetch_data.side_effect = fetch
-    missing_endpoint = "providers_proxies" if scope == "providers" else "proxies"
     api.payload = (
         {}
-        if scope == "all"
+        if missing_endpoint == "all"
         else {key: value for key, value in original.items() if key != missing_endpoint}
     )
     await poll(hass)
     assert entry.state is ConfigEntryState.LOADED
-    assert (hass.states.get(group).state == STATE_UNAVAILABLE) is (scope != "providers")
-    assert (hass.states.get(upload).state == STATE_UNAVAILABLE) is (scope == "all")
-    assert hass.states.get(proxy_count).state == (
-        STATE_UNAVAILABLE if scope in {"providers", "all"} else "1"
-    )
-    assert hass.states.get(rule_count).state == (STATE_UNAVAILABLE if scope == "all" else "1")
+    for key, entity in entities.items():
+        assert (hass.states.get(entity).state == STATE_UNAVAILABLE) is (
+            key in missing_keys
+        )
     await poll(hass, 22)
     endpoint_logs = [record.message for record in caplog.records if record.message.startswith("Endpoint ")]
-    assert len(endpoint_logs) == (0 if scope == "all" else 1)
+    assert len(endpoint_logs) == (0 if missing_endpoint == "all" else 1)
     if endpoint_logs:
         assert f"Endpoint {missing_endpoint} unavailable" in endpoint_logs[0]
         assert "APIConnectionError" in endpoint_logs[0]
     api.payload = original
     await poll(hass, 33)
     assert entry.state is ConfigEntryState.LOADED
-    assert hass.states.get(group).state != STATE_UNAVAILABLE
-    assert hass.states.get(upload).state != STATE_UNAVAILABLE
-    assert hass.states.get(proxy_count).state == "1"
-    assert hass.states.get(rule_count).state == "1"
+    for entity in entities.values():
+        assert hass.states.get(entity).state != STATE_UNAVAILABLE
     endpoint_logs = [record.message for record in caplog.records if record.message.startswith("Endpoint ")]
-    assert len(endpoint_logs) == (0 if scope == "all" else 2)
+    assert len(endpoint_logs) == (0 if missing_endpoint == "all" else 2)
     if endpoint_logs:
         assert f"Endpoint {missing_endpoint} recovered" in endpoint_logs[-1]
 
@@ -314,10 +312,7 @@ async def test_offline_start_retries_without_probing(hass, backend):
 
 async def test_entities_added_after_first_refresh(hass, backend):
     api = backend[0](HOST, "")
-    api.capabilities.update(providers_proxies=True)
     api.payload.pop("memory")
-    api.payload.pop("proxies")
-    api.payload["providers_proxies"] = {"providers": {}}
     entry = await load_entry(hass, backend)
     registry = er.async_get(hass)
 
@@ -329,31 +324,21 @@ async def test_entities_added_after_first_refresh(hass, backend):
 
     before = registered()
     restored = deepcopy(PAYLOAD)
-    restored["proxies"]["proxies"]["Auto"] = {
-        "name": "Auto", "type": "URLTest", "now": "DIRECT", "all": ["DIRECT"]
-    }
-    restored["providers_proxies"] = {"providers": {"New provider": {}}}
     api.payload = restored
     await poll(hass)
     after = registered()
     assert before.items() <= after.items()
-    assert len(after) == len(before) + 3
+    assert len(after) == len(before) + 1
     memory = entity_id(hass, entry, "_memory_used")
-    group = entity_id(hass, entry, "_a/b_中文")
-    automatic = entity_id(hass, entry, "_auto")
     assert hass.states.get(memory).state != STATE_UNAVAILABLE
-    assert hass.states.get(group).state == "DIRECT"
-    assert hass.states.get(automatic).state == "DIRECT"
 
     api.payload = {"traffic": PAYLOAD["traffic"]}
     await poll(hass, 22)
     assert hass.states.get(memory).state == STATE_UNAVAILABLE
-    assert hass.states.get(group).state == STATE_UNAVAILABLE
     api.payload = restored
     await poll(hass, 33)
     assert registered() == after
     assert hass.states.get(memory).state != STATE_UNAVAILABLE
-    assert hass.states.get(group).state == "DIRECT"
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
     api.async_fetch_data.reset_mock()
@@ -454,7 +439,6 @@ async def test_diagnostics_redaction(hass, backend):
         INPUT["bearer_token"],
         HOST,
         "controller.local",
-        "A/B 中文",
     ]:
         assert secret not in output
 
@@ -610,32 +594,9 @@ async def test_service_validation(hass, backend, service, data, key):
     api.async_request.assert_not_awaited()
 
 
-async def test_select_and_button_writes(hass, backend):
+async def test_button_writes(hass, backend):
     entry = await load_entry(hass, backend)
     api = backend[1][HOST]
-    selector = entity_id(hass, entry, "_a/b_中文")
-    await hass.services.async_call(
-        "select",
-        "select_option",
-        {"entity_id": selector, "option": "REJECT"},
-        blocking=True,
-    )
-    api.async_request.assert_awaited_once_with(
-        "PUT", "proxies/A%2FB%20%E4%B8%AD%E6%96%87", json_data={"name": "REJECT"}
-    )
-    assert hass.states.get(selector).state == "REJECT"
-    api.async_request.reset_mock()
-    await hass.services.async_call(
-        "select",
-        "select_option",
-        {"entity_id": entity_id(hass, entry, "_core_mode"), "option": "global"},
-        blocking=True,
-    )
-    api.async_request.assert_awaited_once_with(
-        "PATCH", "configs", json_data={"mode": "global"}
-    )
-    assert hass.states.get(entity_id(hass, entry, "_core_mode")).state == "global"
-    api.async_request.reset_mock()
     await hass.services.async_call(
         "button",
         "press",
@@ -643,25 +604,24 @@ async def test_select_and_button_writes(hass, backend):
         blocking=True,
     )
     api.async_request.assert_awaited_once_with("POST", "cache/fakeip/flush")
+    api.async_request.reset_mock()
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": entity_id(hass, entry, "_flush_dns_cache")},
+        blocking=True,
+    )
+    api.async_request.assert_awaited_once_with("POST", "cache/dns/flush")
 
 
 @pytest.mark.parametrize(
     "api_error",
     [APIConnectionError, APIAuthError, APITimeoutError, APIClientError],
 )
-async def test_entity_action_errors_are_translated(hass, backend, api_error):
+async def test_button_action_errors_are_translated(hass, backend, api_error):
     entry = await load_entry(hass, backend)
     api = backend[1][HOST]
     api.async_request.side_effect = api_error("request failed")
-
-    with pytest.raises(HomeAssistantError) as error:
-        await hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": entity_id(hass, entry, "_a/b_中文"), "option": "REJECT"},
-            blocking=True,
-        )
-    assert error.value.translation_key == "proxy_group_selection_failed"
 
     with pytest.raises(HomeAssistantError) as error:
         await hass.services.async_call(
@@ -671,18 +631,3 @@ async def test_entity_action_errors_are_translated(hass, backend, api_error):
             blocking=True,
         )
     assert error.value.translation_key == "button_action_failed"
-
-    api.async_request.reset_mock()
-    mode = entity_id(hass, entry, "_core_mode")
-    with pytest.raises(HomeAssistantError) as error:
-        await hass.services.async_call(
-            "select",
-            "select_option",
-            {"entity_id": mode, "option": "global"},
-            blocking=True,
-        )
-    assert error.value.translation_key == "mode_selection_failed"
-    api.async_request.assert_awaited_once_with(
-        "PATCH", "configs", json_data={"mode": "global"}
-    )
-    assert hass.states.get(mode).state == "rule"

@@ -28,9 +28,8 @@ python tests/run.py system --all-cores
 ```
 
 Pass a local Clash configuration as the base fixture with `--config`. Dynamic
-controller/proxy ports, the test secret, and the deterministic
-`HA Compatibility Test` selector are injected into a temporary copy; the source
-file is never modified.
+controller and proxy ports and the test secret are injected into a temporary
+copy; the source file is never modified.
 
 ```bash
 python tests/run.py system --core mihomo --full --config /path/to/config.yaml

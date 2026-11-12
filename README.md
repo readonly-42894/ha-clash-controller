@@ -68,7 +68,6 @@ Core capability is automatically detected at entry load, and unsupported entitie
 
 ### 1. Entities
 
-- Proxy group and mode selectors
 - Traffic, connection and memory sensors
 - Provider counters
 - DNS and FakeIP cache flush buttons

@@ -122,18 +122,6 @@ def create_running_core(binary: Path, core_name: str, work_dir: Path) -> Running
             "rules": ["DOMAIN,example.com,DIRECT", "MATCH,DIRECT"],
         }
 
-    groups = config.setdefault("proxy-groups", [])
-    if not any(
-        isinstance(group, dict) and group.get("name") == "HA Compatibility Test"
-        for group in groups
-    ):
-        groups.append(
-            {
-                "name": "HA Compatibility Test",
-                "type": "select",
-                "proxies": ["DIRECT", "REJECT"],
-            }
-        )
     config.update(
         {
             "port": proxy_port,
@@ -160,12 +148,6 @@ def create_running_core(binary: Path, core_name: str, work_dir: Path) -> Running
             ],
             "outbounds": [
                 {"type": "direct", "tag": "DIRECT"},
-                {"type": "direct", "tag": "SECOND"},
-                {
-                    "type": "selector",
-                    "tag": "HA Compatibility Test",
-                    "outbounds": ["DIRECT", "SECOND"],
-                },
             ],
             "route": {
                 "rules": [

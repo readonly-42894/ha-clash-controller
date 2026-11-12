@@ -56,17 +56,6 @@
                 "name": "DNS-Cache leeren"
             }
         },
-        "select": {
-            "core_mode": {
-                "name": "Proxy-Modus",
-                "state": {
-                    "rule": "Regelbasiert",
-                    "global": "Global",
-                    "direct": "Direkt",
-                    "script": "Skript"
-                }
-            }
-        },
         "sensor": {
             "up_speed": {
                 "name": "Uploadrate"
@@ -121,15 +110,6 @@
         },
         "api_call_failed": {
             "message": "API-Aufruf fehlgeschlagen: {error}"
-        },
-        "proxy_group_selection_failed": {
-            "message": "Proxygruppe {group} konnte nicht auf {node} umgestellt werden: {error}"
-        },
-        "empty_mode": {
-            "message": "Der Proxy-Modus darf nicht leer sein."
-        },
-        "mode_selection_failed": {
-            "message": "Proxy-Modus konnte nicht auf {mode} umgestellt werden: {error}"
         },
         "button_action_missing": {
             "message": "Für diese Schaltfläche ist keine Aktion definiert."

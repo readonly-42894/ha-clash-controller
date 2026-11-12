@@ -13,7 +13,7 @@ custom_components/clash_controller/   集成代码
   __init__.py                         入口、RuntimeData、config entry 迁移
   coordinator.py                      ClashEntityData 模型与数据轮询
   base.py                             实体基类
-  sensor.py / select.py / button.py    实体平台，按 entity_type 分派
+  sensor.py / button.py                实体平台，按 entity_type 分派
   config_flow.py                      配置流程、Options、MINOR_VERSION
   services.py / services.yaml         服务动作定义与注册
   diagnostics.py                      诊断信息与脱敏

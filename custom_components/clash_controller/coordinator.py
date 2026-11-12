@@ -64,7 +64,6 @@ class ClashEntityData:
     entity_category: EntityCategory | None = None
     enabled_default: bool | None = None
     attributes: dict[str, Any] | None = None
-    options: list[str] | None = None
     action: dict[str, Any] | None = None
     unique_key: str | None = None
     unique_id: str = ""
@@ -104,7 +103,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             token=self.token,
             session=async_get_clientsession(hass, verify_ssl=not self.allow_unsafe),
         )
-        self._data_by_name: dict[str, ClashEntityData] = {}
         self._data_by_unique_id: dict[str, ClashEntityData] = {}
         self._failed_endpoints: set[str] = set()
 
@@ -204,10 +202,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             )
         if capabilities.get("memory"):
             entity_data.extend(self._build_memory_entities(response.get("memory", {})))
-        if capabilities.get("proxies"):
-            entity_data.extend(self._build_proxy_entities(response.get("proxies", {})))
-        if capabilities.get("configs"):
-            entity_data.extend(self._build_config_entities(response.get("configs", {})))
         if capabilities.get("providers_proxies") or capabilities.get("providers_rules"):
             entity_data.extend(
                 self._build_provider_entities(
@@ -234,10 +228,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
                 f"_{id_source.lower().replace(' ', '_')}"
             )
 
-        self._data_by_name = {}
-        for item in entity_data:
-            if item.name and item.name not in self._data_by_name:
-                self._data_by_name[item.name] = item
         self._data_by_unique_id = {item.unique_id: item for item in entity_data}
         return entity_data
 
@@ -344,82 +334,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             unique_key="flush_dns_cache",
         )
 
-    @staticmethod
-    def _build_proxy_entities(proxies: dict[str, Any]) -> list[ClashEntityData]:
-        """Create entities for proxy groups."""
-        entity_data: list[ClashEntityData] = []
-        group_selector_items = ["tfo", "type", "udp", "xudp", "alive", "history"]
-        group_sensor_items = group_selector_items + ["all"]
-        urltest_items = group_sensor_items + [
-            "expectedStatus",
-            "testUrl",
-            "lastTestTime",
-        ]
-
-        for item in proxies.get("proxies", {}).values():
-            if item.get("type") in ["Selector", "Fallback"]:
-                entity_data.append(
-                    ClashEntityData(
-                        name=item.get("name", ""),
-                        state=item.get("now"),
-                        entity_type="proxy_group_selector",
-                        icon="mdi:network-outline",
-                        options=item.get("all"),
-                        attributes={
-                            k: item[k] for k in group_selector_items if k in item
-                        },
-                    )
-                )
-            elif item.get("type") == "URLTest":
-                fixed_value = item.get("fixed")
-                supports_fixed = "fixed" in item
-                attributes = {k: item[k] for k in urltest_items if k in item}
-                if supports_fixed:
-                    attributes["fixed"] = bool(fixed_value)
-                entity_data.append(
-                    ClashEntityData(
-                        name=item.get("name", ""),
-                        state=item.get("now"),
-                        entity_type=(
-                            "proxy_group_selector"
-                            if supports_fixed
-                            else "proxy_group_sensor"
-                        ),
-                        icon="mdi:network-outline",
-                        options=item.get("all") if supports_fixed else None,
-                        attributes=attributes,
-                    )
-                )
-
-        return entity_data
-
-    def _build_config_entities(self, configs: dict[str, Any]) -> list[ClashEntityData]:
-        """Create entities for mutable config values."""
-        if not configs:
-            return []
-
-        mode = configs.get("mode")
-        if not mode:
-            return []
-
-        mode_options = configs.get("mode-list")
-        if not isinstance(mode_options, list) or not mode_options:
-            mode_options = ["rule", "global", "direct"]
-        if mode not in mode_options:
-            mode_options = [*mode_options, mode]
-
-        return [
-            ClashEntityData(
-                name=None,
-                state=mode,
-                options=mode_options,
-                entity_type="core_mode_selector",
-                icon="mdi:tune",
-                translation_key="core_mode",
-                unique_key="core_mode",
-            )
-        ]
-
     def _build_provider_entities(
         self,
         providers_proxies: dict[str, Any] | None,
@@ -461,10 +375,6 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
                 )
 
         return entity_data
-
-    def get_data_by_name(self, name: str) -> ClashEntityData | None:
-        """Retrieve data by name."""
-        return self._data_by_name.get(name)
 
     def get_data_by_unique_id(self, unique_id: str) -> ClashEntityData | None:
         """Retrieve data by unique ID."""

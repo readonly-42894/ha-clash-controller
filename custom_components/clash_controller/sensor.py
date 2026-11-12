@@ -98,8 +98,6 @@ async def async_setup_entry(
                 continue
             if description := SENSOR_DESCRIPTIONS.get(entity_data.unique_key or ""):
                 sensors.append(ClashNumericSensor(coordinator, entity_data, description))
-            elif entity_data.entity_type == "proxy_group_sensor":
-                sensors.append(GroupSensor(coordinator, entity_data))
             else:
                 continue
             known_ids.add(entity_data.unique_id)
@@ -143,12 +141,3 @@ class ClashNumericSensor(SensorEntityBase):
     def _is_numeric(value: object) -> bool:
         """Return whether a value is a supported sensor number."""
         return isinstance(value, (int, float)) and not isinstance(value, bool)
-
-
-class GroupSensor(SensorEntityBase):
-    """Proxy group state sensor."""
-
-    @property
-    def native_value(self) -> str | None:
-        """Return the selected proxy."""
-        return self.entity_data.state
