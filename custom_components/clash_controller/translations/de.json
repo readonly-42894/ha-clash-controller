@@ -34,30 +34,17 @@
     "options": {
         "step": {
             "init": {
-                "description": "Für den Streaming-Check ist eine gültige HTTP-Proxy-Adresse erforderlich: `address:port` oder mit Zugangsdaten `username:password@address:port`.",
                 "title": "Clash Controller – Optionen",
                 "data": {
                     "scan_interval": "Abfrageintervall (Sekunden)",
-                    "concurrent_connections": "Parallele Verbindungen",
-                    "streaming_detection": "Streaming-Verfügbarkeit prüfen",
-                    "streaming_proxy": "Proxy-Adresse"
+                    "concurrent_connections": "Parallele Verbindungen"
                 }
             }
-        },
-        "error": {
-            "invalid_proxy": "Eine gültige HTTP-Proxy-Adresse eingeben.",
-            "cannot_connect_proxy": "Verbindung über den Proxy fehlgeschlagen. Adresse prüfen und erneut versuchen.",
-            "invalid_proxy_auth": "Der Proxy hat die Zugangsdaten abgelehnt.",
-            "proxy_timed_out": "Zeitüberschreitung bei der Proxy-Verbindung.",
-            "unknown": "Unerwarteter Fehler. Später erneut versuchen."
         }
     },
     "device": {
         "clash_instance": {
             "name": "Clash-Instanz"
-        },
-        "streaming_detection": {
-            "name": "Streaming-Verfügbarkeit"
         }
     },
     "entity": {
@@ -110,35 +97,6 @@
             },
             "rule_provider_count": {
                 "name": "Regel-Provider"
-            },
-            "streaming_service": {
-                "name": "{service}",
-                "state": {
-                    "available": "Verfügbar",
-                    "limited": "Eingeschränkt",
-                    "blocked": "Blockiert",
-                    "unknown": "Unbekannt"
-                },
-                "state_attributes": {
-                    "latency": {
-                        "name": "Latenz"
-                    },
-                    "status_code": {
-                        "name": "Statuscode"
-                    },
-                    "region": {
-                        "name": "Region"
-                    },
-                    "access_level": {
-                        "name": "Zugriffsumfang"
-                    },
-                    "reason": {
-                        "name": "Grund"
-                    },
-                    "redirect_url": {
-                        "name": "Weiterleitungs-URL"
-                    }
-                }
             }
         }
     },

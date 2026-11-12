@@ -34,30 +34,17 @@
     "options": {
         "step": {
             "init": {
-                "description": "If streaming availability detection is enabled, a valid HTTP proxy address is required in the format `address:port`, or `username:password@address:port` when authentication is used.",
                 "title": "Clash Controller Options",
                 "data": {
                     "scan_interval": "Scan Interval (seconds)",
-                    "concurrent_connections": "Concurrent Connections",
-                    "streaming_detection": "Enable Streaming Service Availability Detection",
-                    "streaming_proxy": "Proxy Address"
+                    "concurrent_connections": "Concurrent Connections"
                 }
             }
-        },        
-        "error": {
-            "invalid_proxy": "Enter a valid HTTP proxy address.",
-            "cannot_connect_proxy": "Failed to connect through the proxy. Verify the address and try again.",
-            "invalid_proxy_auth": "The proxy rejected the provided credentials.",
-            "proxy_timed_out": "The proxy connection timed out.",
-            "unknown": "An unexpected error occurred. Please try again later."
         }
     },
     "device": {
         "clash_instance": {
             "name": "Clash Instance"
-        },
-        "streaming_detection": {
-            "name": "Streaming Availability"
         }
     },
     "entity": {
@@ -110,35 +97,6 @@
           },
           "rule_provider_count": {
             "name": "Rule Provider Count"
-          },
-          "streaming_service": {
-            "name": "{service}",
-            "state":{
-                "available": "Available",
-                "limited": "Limited",
-                "blocked": "Blocked",
-                "unknown": "Unknown"
-            },
-            "state_attributes":{
-                "latency": {
-                    "name": "Latency"
-                },
-                "status_code": {
-                    "name": "Status Code"
-                },
-                "region": {
-                    "name": "Region"
-                },
-                "access_level": {
-                    "name": "Access Level"
-                },
-                "reason": {
-                    "name": "Reason"
-                },
-                "redirect_url": {
-                    "name": "Redirect URL"
-                }
-            }
           }
         }
     },

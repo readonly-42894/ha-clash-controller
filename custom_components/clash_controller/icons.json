@@ -24,9 +24,6 @@
       },
       "rule_provider_count": {
         "default": "mdi:file-document-outline"
-      },
-      "streaming_service": {
-        "default": "mdi:television"
       }
     }
   }

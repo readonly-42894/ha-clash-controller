@@ -95,14 +95,6 @@ data:
 response_variable: proxy_data
 ```
 
-### 3. Streaming Services
-
-Streaming service availability detection is disabled by default. To enable it, navigate to "Settings" > "Devices & services" > "Clash Controller" > "Options", and provide the proxy address in the format of `<address>:<port>` or `<username>:<password>@<address>:<port>`. Possible states include `available`, `limited`, `blocked`, `unknown`. Please note that only Netflix sensor is enabled by default.
-
-Currently supported service(s): BBC iPlayer, DAZN, Max, Netflix, Paramount+, Peacock, Prime Video, YouTube Premium.
-
-Region information is included when available. `limited` status is only provided for Netflix to indicate Netflix Originals only access.
-
 ## Feedback
 
 To report an issue, please include details about your Clash configuration such as client type, core type and core version, along with debug logs of this integration.

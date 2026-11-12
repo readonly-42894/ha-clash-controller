@@ -34,30 +34,17 @@
     "options": {
         "step": {
             "init": {
-                "description": "如果使用流媒体检测，必须正确填写 HTTP 代理地址，格式为 `address:port`，如使用身份验证，则为 `username:password@address:port`。",
                 "title": "Clash 控制器选项",
                 "data": {
                     "scan_interval": "扫描间隔（秒）",
-                    "concurrent_connections": "并发连接数",
-                    "streaming_detection": "流媒体可用性检测",
-                    "streaming_proxy": "代理地址"
+                    "concurrent_connections": "并发连接数"
                 }
             }
-        },        
-        "error": {
-            "invalid_proxy": "请输入有效的 HTTP 代理地址。",
-            "cannot_connect_proxy": "无法通过代理连接，请检查地址后重试。",
-            "invalid_proxy_auth": "代理拒绝了提供的身份验证信息。",
-            "proxy_timed_out": "代理连接超时。",
-            "unknown": "发生意外错误，请稍后重试。"
         }
     },
     "device": {
         "clash_instance": {
             "name": "Clash 实例"
-        },
-        "streaming_detection": {
-            "name": "流媒体可用性"
         }
     },
     "entity": {
@@ -110,35 +97,6 @@
           },
           "rule_provider_count": {
             "name": "规则集合数量"
-          },
-          "streaming_service": {
-            "name": "{service}",
-            "state":{
-                "available": "可用",
-                "limited": "受限",
-                "blocked": "受阻",
-                "unknown": "未知"
-            },
-            "state_attributes":{
-                "latency": {
-                    "name": "延迟"
-                },
-                "status_code": {
-                    "name": "状态码"
-                },
-                "region": {
-                    "name": "地区"
-                },
-                "access_level": {
-                    "name": "访问级别"
-                },
-                "reason": {
-                    "name": "原因"
-                },
-                "redirect_url": {
-                    "name": "重定向地址"
-                }
-            }
           }
         }
     },
