@@ -1,13 +1,13 @@
 {
     "domain": "clash_controller",
     "name": "Clash Controller",
-    "codeowners": ["@myhades"],
+    "codeowners": ["@readonly-42894"],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/myhades/ha-clash-controller",
+    "documentation": "https://github.com/readonly-42894/ha-clash-controller",
     "integration_type": "device",
     "iot_class": "local_polling",
-    "issue_tracker": "https://github.com/myhades/ha-clash-controller/issues",
+    "issue_tracker": "https://github.com/readonly-42894/ha-clash-controller/issues",
     "loggers": ["clash_controller_api"],
     "requirements": [
         "clash-controller-api@https://git.o0kam1.dev/api/packages/HumanlessCode/pypi/files/clash-controller-api/0.2.1/clash_controller_api-0.2.1-py3-none-any.whl"
