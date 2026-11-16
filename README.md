@@ -86,12 +86,10 @@ the config entry reloads and do not count messages received while the log
 stream is disconnected. The window length is configured in the integration
 options (default 300 seconds).
 
-The Smart weights flush button appears only on Smart-enabled cores. Smart
-groups are not part of the upstream
-[MetaCubeX/mihomo](https://github.com/MetaCubeX/mihomo); they come from Smart
-kernels such as vernesong's Smart fork used by OpenClash. The button calls
-`POST /cache/smart/flush` and clears the learned Smart weights for every Smart
-group on the controller.
+The Smart weights flush button appears only on Smart-enabled cores (the
+[vernesong/mihomo](https://github.com/vernesong/mihomo) Smart branch, not the
+MetaCubeX mihomo). It calls `POST /cache/smart/flush` and clears the learned
+Smart weights for every Smart group on the controller.
 
 ### 2. Actions (Service Calls)
 
