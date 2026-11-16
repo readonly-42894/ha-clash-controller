@@ -55,6 +55,9 @@
           },
           "flush_dns_cache": {
             "name": "Flush DNS Cache"
+          },
+          "flush_smart_weights": {
+            "name": "Clear Smart Weights"
           }
         },
         "sensor": {

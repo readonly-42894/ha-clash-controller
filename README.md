@@ -72,6 +72,7 @@ Core capability is automatically detected at entry load, and unsupported entitie
 - Provider counters
 - Warning and error log counters over a configurable sliding window
 - DNS and FakeIP cache flush buttons
+- Smart weights flush button (Smart-enabled cores only)
 
 Traffic, memory and connection sensors subscribe to the core's WebSocket
 endpoints (`/traffic`, `/memory`, `/connections`) when the core supports them
@@ -84,6 +85,11 @@ Log counters require the core's `/logs` WebSocket endpoint. Counters reset when
 the config entry reloads and do not count messages received while the log
 stream is disconnected. The window length is configured in the integration
 options (default 300 seconds).
+
+The Smart weights flush button appears only on Smart-enabled cores (the
+[vernesong/mihomo](https://github.com/vernesong/mihomo) Smart branch). It calls
+`POST /cache/smart/flush` and clears the learned Smart weights for every Smart
+group on the controller.
 
 ### 2. Actions (Service Calls)
 

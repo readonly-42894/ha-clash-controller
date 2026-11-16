@@ -203,7 +203,8 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
         real_entities = [
             item
             for item in data
-            if item.entity_type not in {"fakeip_flush_button", "dns_flush_button"}
+            if item.entity_type
+            not in {"fakeip_flush_button", "dns_flush_button", "smart_flush_button"}
         ]
         if not real_entities:
             raise UpdateFailed("Empty response")
@@ -490,6 +491,8 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
             entity_data.append(self._build_fakeip_button())
         if capabilities.get("cache_dns_flush"):
             entity_data.append(self._build_dns_flush_button())
+        if capabilities.get("cache_smart_flush"):
+            entity_data.append(self._build_smart_flush_button())
 
         for item in entity_data:
             id_source = (
@@ -605,6 +608,22 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
                 "kwargs": {},
             },
             unique_key="flush_dns_cache",
+        )
+
+    def _build_smart_flush_button(self) -> ClashEntityData:
+        """Create Smart weights flush button entity."""
+        return ClashEntityData(
+            name=None,
+            entity_type="smart_flush_button",
+            icon="mdi:cached",
+            translation_key="flush_smart_weights",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            action={
+                "method": self.api.async_request,
+                "args": ("POST", "cache/smart/flush"),
+                "kwargs": {},
+            },
+            unique_key="flush_smart_weights",
         )
 
     def _build_provider_entities(

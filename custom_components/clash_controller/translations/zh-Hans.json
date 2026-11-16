@@ -55,6 +55,9 @@
           },
           "flush_dns_cache": {
             "name": "清除 DNS 缓存"
+          },
+          "flush_smart_weights": {
+            "name": "清除 Smart 权重"
           }
         },
         "sensor": {

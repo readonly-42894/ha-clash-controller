@@ -64,6 +64,7 @@ def backend(monkeypatch):
                     "ws_connections": True,
                     "cache_fakeip_flush": True,
                     "cache_dns_flush": True,
+                    "cache_smart_flush": True,
                     "restart": True,
                 },
                 available_endpoints=[],
@@ -723,6 +724,26 @@ async def test_button_writes(hass, backend):
         blocking=True,
     )
     api.async_request.assert_awaited_once_with("POST", "cache/dns/flush")
+    api.async_request.reset_mock()
+    await hass.services.async_call(
+        "button",
+        "press",
+        {"entity_id": entity_id(hass, entry, "_flush_smart_weights")},
+        blocking=True,
+    )
+    api.async_request.assert_awaited_once_with("POST", "cache/smart/flush")
+
+
+async def test_smart_flush_button_requires_capability(hass, backend):
+    api = backend[0](HOST, "")
+    api.capabilities["cache_smart_flush"] = False
+    entry = await load_entry(hass, backend)
+    registry = er.async_get(hass)
+    assert not [
+        item
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+        if item.unique_id.endswith("_smart_flush_button_flush_smart_weights")
+    ]
 
 
 @pytest.mark.parametrize(

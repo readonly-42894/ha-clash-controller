@@ -1,6 +1,9 @@
 """Small capability-dependent entity construction contracts."""
 
 from collections import deque
+from types import SimpleNamespace
+
+from homeassistant.helpers.entity import EntityCategory
 
 from custom_components.clash_controller.coordinator import ClashControllerCoordinator
 
@@ -56,3 +59,17 @@ def test_record_log_normalizes_levels():
 
     assert len(coordinator._log_events["warning"]) == 2
     assert len(coordinator._log_events["error"]) == 1
+
+
+def test_smart_flush_button_targets_global_smart_cache():
+    coordinator = object.__new__(ClashControllerCoordinator)
+    coordinator.api = SimpleNamespace(async_request=object())
+    button = coordinator._build_smart_flush_button()
+
+    assert button.entity_type == "smart_flush_button"
+    assert button.unique_key == "flush_smart_weights"
+    assert button.translation_key == "flush_smart_weights"
+    assert button.entity_category is EntityCategory.DIAGNOSTIC
+    assert button.action["method"] is coordinator.api.async_request
+    assert button.action["args"] == ("POST", "cache/smart/flush")
+    assert button.action["kwargs"] == {}

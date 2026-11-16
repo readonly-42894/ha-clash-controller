@@ -55,6 +55,9 @@
             },
             "flush_dns_cache": {
                 "name": "DNS-Cache leeren"
+            },
+            "flush_smart_weights": {
+                "name": "Smart-Gewichte zurücksetzen"
             }
         },
         "sensor": {
