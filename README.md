@@ -20,14 +20,20 @@ Known working clients: Nikki, OpenClash, ShellClash and MerlinClash.
 
 Core support:
 
-| Core Name       | Supported | Tested Version | Status      |
-|-----------------|-----------|----------------|-------------|
-| Clash           | Partially | v1.18.0        | End of life |
-| Clash Premium   | Partially | 2023.08.17     | End of life |
-| Clash Meta      | Partially | v1.16.0        | End of life |
-| Mihomo          | Yes       | v1.19.28       | Maintained  |
-| clash-rs        | Yes       | v0.10.8        | Maintained  |
-| sing-box        | Partially | v1.14.0        | Maintained  |
+| Core Name       | Supported | Tested Version  | Status      |
+|-----------------|-----------|-----------------|-------------|
+| Clash           | Partially | v1.18.0         | End of life |
+| Clash Premium   | Partially | 2023.08.17      | End of life |
+| Clash Meta      | Partially | v1.16.0         | End of life |
+| Mihomo          | Yes       | v1.19.28        | Maintained  |
+| Mihomo Smart    | Yes       | Prerelease-Alpha | Maintained  |
+| clash-rs        | Yes       | v0.10.8         | Maintained  |
+| sing-box        | Partially | v1.14.0         | Maintained  |
+
+Mihomo Smart is the Smart variant maintained at
+[vernesong/mihomo](https://github.com/vernesong/mihomo) (rolling
+`Prerelease-Alpha` releases), which extends MetaCubeX mihomo with Smart proxy
+groups.
 
 ## Installation
 
@@ -87,7 +93,7 @@ stream is disconnected. The window length is configured in the integration
 options (default 300 seconds).
 
 The Smart weights flush button appears only on Smart-enabled cores (the
-[vernesong/mihomo](https://github.com/vernesong/mihomo) Smart branch, not the
+[vernesong/mihomo](https://github.com/vernesong/mihomo) Smart variant, not the
 MetaCubeX mihomo). It calls `POST /cache/smart/flush` and clears the learned
 Smart weights for every Smart group on the controller.
 
