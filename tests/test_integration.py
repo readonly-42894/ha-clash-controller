@@ -248,6 +248,76 @@ async def test_flow_identity_reload_and_cleanup(hass, backend):
     assert hass.services.async_services_for_domain(DOMAIN)
 
 
+@pytest.mark.parametrize(
+    "token_input", [None, "", "   "], ids=["missing", "empty", "blank"]
+)
+async def test_config_flow_allows_missing_token(hass, backend, token_input):
+    """A controller without a secret is configured without a token."""
+    host = "http://no-auth.local:9090/"
+    data = {**INPUT, "api_url": host}
+    if token_input is None:
+        data.pop("bearer_token")
+    else:
+        data["bearer_token"] = token_input
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data=data
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = result["result"]
+    assert entry.data["bearer_token"] == ""
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.coordinator.token == ""
+
+
+async def test_config_flow_preserves_api_path_prefix(hass, backend):
+    """Addresses served below a sub-path keep their prefix."""
+    host = "http://controller.local:9090/clash/api"
+    normalized = "http://controller.local:9090/clash/api/"
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "user"}, data={**INPUT, "api_url": host}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = result["result"]
+    assert entry.data["api_url"] == normalized
+    assert entry.unique_id == "http___controller_local_9090_clash_api_"
+    assert normalized in backend[1]
+
+    registry = er.async_get(hass)
+    unique_ids = {
+        item.unique_id
+        for item in er.async_entries_for_config_entry(registry, entry.entry_id)
+    }
+    device_id = "http___controller_local_9090_clash_api__device"
+    assert f"{device_id}_traffic_sensor_upload_speed" in unique_ids
+    device = dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)[0]
+    assert device.identifiers == {(DOMAIN, device_id)}
+    assert device.configuration_url == normalized
+
+
+async def test_reauth_can_clear_token(hass, backend):
+    """Reauthentication accepts an empty token for controllers without a secret."""
+    entry = await load_entry(hass, backend)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": "reauth", "entry_id": entry.entry_id}
+    )
+    assert result["type"] is FlowResultType.FORM
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reauth_successful"
+    assert entry.data["bearer_token"] == ""
+    await hass.async_block_till_done()
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.runtime_data.coordinator.token == ""
+
+
 async def test_entry_migration_removes_runtime_probe_data(hass, backend):
     entry = MockConfigEntry(
         domain=DOMAIN,

@@ -61,6 +61,41 @@ async def test_core_loads_in_home_assistant(hass, running_core):
         await hass.async_block_till_done()
 
 
+async def test_core_without_secret_loads_in_home_assistant(
+    hass, running_core_without_secret
+):
+    """A controller without a secret is configured with an empty token."""
+    core = running_core_without_secret
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+        data={
+            "api_url": core.url,
+            "bearer_token": "",
+            "use_ssl": False,
+            "allow_unsafe": False,
+        },
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = result["result"]
+    try:
+        assert entry.data["bearer_token"] == ""
+        assert entry.state is ConfigEntryState.LOADED
+        entities = er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+        enabled = [item for item in entities if item.disabled_by is None]
+        assert enabled
+        assert all(
+            hass.states.get(item.entity_id).state != STATE_UNAVAILABLE
+            for item in enabled
+        )
+    finally:
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+
 @pytest.mark.release
 async def test_real_process_outage_recovers_on_poll(hass, running_core):
     """One real process restart; no manual coordinator refresh."""

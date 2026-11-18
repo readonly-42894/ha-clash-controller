@@ -3,6 +3,7 @@
 import pytest
 
 from .core import running_core as running_core
+from .core import running_core_without_secret as running_core_without_secret
 
 
 @pytest.fixture(autouse=True)

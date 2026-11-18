@@ -98,7 +98,9 @@ def _start_process(
         )
 
 
-def create_running_core(binary: Path, core_name: str, work_dir: Path) -> RunningCore:
+def create_running_core(
+    binary: Path, core_name: str, work_dir: Path, *, secret: str = SECRET
+) -> RunningCore:
     """Create and start a core in a caller-owned temporary directory."""
     work_dir.mkdir(parents=True, exist_ok=True)
     database = os.environ.get("CLASH_TEST_DATABASE")
@@ -128,7 +130,7 @@ def create_running_core(binary: Path, core_name: str, work_dir: Path) -> Running
             "allow-lan": False,
             "log-level": "silent",
             "external-controller": f"127.0.0.1:{controller_port}",
-            "secret": SECRET,
+            "secret": secret,
         }
     )
     if core_name == "sing_box":
@@ -139,7 +141,7 @@ def create_running_core(binary: Path, core_name: str, work_dir: Path) -> Running
             "experimental": {
                 "clash_api": {
                     "external_controller": f"127.0.0.1:{controller_port}",
-                    "secret": SECRET,
+                    "secret": secret,
                     "default_mode": "rule",
                 }
             },
@@ -183,8 +185,9 @@ def create_running_core(binary: Path, core_name: str, work_dir: Path) -> Running
     return core
 
 
-@pytest.fixture(scope="session")
-def running_core(tmp_path_factory: pytest.TempPathFactory) -> Iterator[RunningCore]:
+def _start_pinned_core(
+    tmp_path_factory: pytest.TempPathFactory, suffix: str, *, secret: str
+) -> Iterator[RunningCore]:
     """Start the core selected by the CI matrix or local environment."""
     pytest_socket.enable_socket()
     binary_value = os.environ.get("CLASH_CORE_BINARY")
@@ -196,9 +199,23 @@ def running_core(tmp_path_factory: pytest.TempPathFactory) -> Iterator[RunningCo
         pytest.fail(f"CLASH_CORE_BINARY does not exist: {binary}")
 
     core_name = os.environ.get("CLASH_CORE_NAME", binary.name)
-    work_dir = tmp_path_factory.mktemp(f"core-{core_name}")
-    core = create_running_core(binary, core_name, work_dir)
+    work_dir = tmp_path_factory.mktemp(f"core-{core_name}{suffix}")
+    core = create_running_core(binary, core_name, work_dir, secret=secret)
     try:
         yield core
     finally:
         core.stop()
+
+
+@pytest.fixture(scope="session")
+def running_core(tmp_path_factory: pytest.TempPathFactory) -> Iterator[RunningCore]:
+    """Start the pinned core with a controller secret."""
+    yield from _start_pinned_core(tmp_path_factory, "", secret=SECRET)
+
+
+@pytest.fixture(scope="session")
+def running_core_without_secret(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[RunningCore]:
+    """Start the pinned core without a controller secret."""
+    yield from _start_pinned_core(tmp_path_factory, "-no-secret", secret="")
