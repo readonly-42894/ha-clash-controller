@@ -10,13 +10,20 @@
                     "use_ssl": "Use HTTPS",
                     "allow_unsafe": "Allow Unsafe SSL Certificates"
                 },
-                "description": "Enter the API address and token for your Clash instance. Examples: 192.168.1.1:9090, clash.mydomain.com. If the location is an IP address, make sure it's static."
+                "data_description": {
+                    "api_url": "Examples: 192.168.1.1:9090, clash.mydomain.com, https://clash.mydomain.com/api",
+                    "bearer_token": "Token configured as the controller secret. Leave this empty when the controller has no secret."
+                },
+                "description": "Enter the API address of your Clash instance, including the controller port. A path prefix is allowed when the controller is served below a sub-path. If the location is an IP address, make sure it's static."
             },
             "reauth_confirm": {
                 "title": "Update Clash credentials",
-                "description": "The stored API token is no longer accepted. Enter a valid token to reconnect.",
+                "description": "The stored API token is no longer accepted. Enter a valid token, or leave the field empty when the controller has no secret.",
                 "data": {
                     "bearer_token": "Token"
+                },
+                "data_description": {
+                    "bearer_token": "Leave this empty when the controller has no secret configured."
                 }
             }
         },        

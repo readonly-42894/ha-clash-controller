@@ -10,13 +10,20 @@
                     "use_ssl": "HTTPS verwenden",
                     "allow_unsafe": "Unsichere SSL-Zertifikate zulassen"
                 },
-                "description": "API-Adresse und Token der Clash-Instanz eingeben, z. B. 192.168.1.1:9090 oder clash.mydomain.com. Bei einer IP-Adresse muss diese statisch sein."
+                "data_description": {
+                    "api_url": "Beispiele: 192.168.1.1:9090, clash.mydomain.com, https://clash.mydomain.com/api",
+                    "bearer_token": "Token aus der Controller-Konfiguration. Leer lassen, wenn der Controller kein Secret verwendet."
+                },
+                "description": "API-Adresse der Clash-Instanz einschließlich Controller-Port eingeben. Wird der Controller unter einem Unterpfad bereitgestellt, ist ein Pfadpräfix erlaubt. Bei einer IP-Adresse muss diese statisch sein."
             },
             "reauth_confirm": {
                 "title": "Clash-Token aktualisieren",
-                "description": "Der gespeicherte API-Token wird nicht mehr akzeptiert. Einen gültigen Token eingeben, um die Verbindung wiederherzustellen.",
+                "description": "Der gespeicherte API-Token wird nicht mehr akzeptiert. Einen gültigen Token eingeben oder das Feld leer lassen, wenn der Controller kein Secret verwendet.",
                 "data": {
                     "bearer_token": "Token"
+                },
+                "data_description": {
+                    "bearer_token": "Leer lassen, wenn der Controller kein Secret verwendet."
                 }
             }
         },

@@ -10,13 +10,20 @@
                     "use_ssl": "使用 HTTPS",
                     "allow_unsafe": "允许不安全的 SSL 证书"
                 },
-                "description": "请输入您的 Clash 实例的 API 地址和令牌。例如：192.168.1.1:9090，clash.mydomain.com。如果地址是 IP，请确保其为静态地址。"
+                "data_description": {
+                    "api_url": "示例：192.168.1.1:9090、clash.mydomain.com、https://clash.mydomain.com/api",
+                    "bearer_token": "填写控制器配置中的 secret。控制器未设置 secret 时留空。"
+                },
+                "description": "请输入 Clash 实例的 API 地址（包含控制器端口）。控制器部署在子路径下时，地址可以带路径前缀。如果地址是 IP，请确保其为静态地址。"
             },
             "reauth_confirm": {
                 "title": "更新 Clash 凭据",
-                "description": "已保存的 API 令牌不再有效。请输入有效令牌以重新连接。",
+                "description": "已保存的 API 令牌不再有效。请输入有效令牌；控制器未设置 secret 时可留空。",
                 "data": {
                     "bearer_token": "令牌"
+                },
+                "data_description": {
+                    "bearer_token": "控制器未设置 secret 时留空。"
                 }
             }
         },        

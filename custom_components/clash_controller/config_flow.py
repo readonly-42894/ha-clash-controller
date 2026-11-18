@@ -96,13 +96,14 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
             user_input = {}
 
         api_url = user_input.get(CONF_API_URL, "")
-        token = user_input.get(CONF_BEAR_TOKEN, "")
+        token = str(user_input.get(CONF_BEAR_TOKEN, "")).strip()
         use_ssl = user_input.get(CONF_USE_SSL, False)
         allow_unsafe = user_input.get(CONF_ALLOW_UNSAFE, False)
 
         if user_input:
             api_url = self._normalize_url(api_url, use_ssl)
             user_input[CONF_API_URL] = api_url
+            user_input[CONF_BEAR_TOKEN] = token
             api = ClashAPI(
                 api_url,
                 token,
@@ -120,7 +121,7 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_API_URL, default=api_url): cv.string,
-                    vol.Required(CONF_BEAR_TOKEN, default=token): cv.string,
+                    vol.Optional(CONF_BEAR_TOKEN, default=token): cv.string,
                     vol.Optional(CONF_USE_SSL, default=use_ssl): cv.boolean,
                     vol.Optional(CONF_ALLOW_UNSAFE, default=allow_unsafe): cv.boolean,
                 }
@@ -142,7 +143,7 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
         config_entry = self._get_reauth_entry()
 
         if user_input is not None:
-            token = user_input[CONF_BEAR_TOKEN]
+            token = str(user_input.get(CONF_BEAR_TOKEN, "")).strip()
             allow_unsafe = config_entry.data.get(CONF_ALLOW_UNSAFE, False)
             api = ClashAPI(
                 config_entry.data[CONF_API_URL],
@@ -158,7 +159,9 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reauth_confirm",
-            data_schema=vol.Schema({vol.Required(CONF_BEAR_TOKEN): cv.string}),
+            data_schema=vol.Schema(
+                {vol.Optional(CONF_BEAR_TOKEN, default=""): cv.string}
+            ),
             errors=errors,
         )
 

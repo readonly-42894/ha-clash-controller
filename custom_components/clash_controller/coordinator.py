@@ -34,6 +34,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .const import (
+    CONF_BEAR_TOKEN,
     CONF_CONCURRENT_CONNECTIONS,
     CONF_LOG_WINDOW,
     DEFAULT_CONCURRENT_CONNECTIONS,
@@ -96,7 +97,7 @@ class ClashControllerCoordinator(DataUpdateCoordinator[list[ClashEntityData]]):
     def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry) -> None:
         """Initialize the Clash Controller coordinator."""
         self.host = config_entry.data["api_url"]
-        self.token = config_entry.data["bearer_token"]
+        self.token = config_entry.data.get(CONF_BEAR_TOKEN, "")
         self.allow_unsafe = config_entry.data["allow_unsafe"]
         self.device_id = _device_id_from_host(self.host)
         self.config_entry = config_entry
