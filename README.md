@@ -53,9 +53,9 @@ Download the repo and copy the folder `/custom_components/clash_controller` into
 
 ## Configuration
 
-Configure `external-controller` and a non-empty `secret` first (for sing-box: `experimental.clash_api.external_controller` and `experimental.clash_api.secret`).
+Configure `external-controller` first (for sing-box: `experimental.clash_api.external_controller`). Configuring `secret` is optional: when it is set, use the same value as the integration token, and leave the token empty when the controller has no secret.
 
-Use the core host's IP address or hostname and the controller port as the API address (e.g. `192.168.1.1:9090`), and `secret` as the token.
+Use the core host's IP address or hostname and the controller port as the API address (e.g. `192.168.1.1:9090`). The address may carry a path prefix when the controller is exposed below a sub-path, for example `https://clash.mydomain.com/api`.
 
 To add the integration, navigate to "Settings" > "Devices & services" > "Add integration" > "Clash Controller" or use the My button below. Then, follow the config flow.
 
