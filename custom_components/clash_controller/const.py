@@ -6,7 +6,6 @@ DOMAIN = "clash_controller"
 
 CONF_API_URL = "api_url"
 CONF_BEAR_TOKEN = "bearer_token"
-CONF_USE_SSL = "use_ssl"
 CONF_ALLOW_UNSAFE = "allow_unsafe"
 
 # Options

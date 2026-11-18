@@ -40,7 +40,6 @@ INPUT = {
     "api_url": HOST,
     "bearer_token": "secret-token",
     "allow_unsafe": False,
-    "use_ssl": False,
 }
 PAYLOAD = {
     "traffic": {"up": 1048576, "down": 0},
@@ -190,6 +189,47 @@ async def test_config_flow_errors(hass, backend, error, key, caplog):
         assert unexpected[0].exc_info is not None
 
 
+@pytest.mark.parametrize(
+    "api_url",
+    [
+        "controller.local:9090",
+        "ftp://controller.local:9090",
+        "http://",
+        "http://controller.local:9090/bad path",
+        "   ",
+    ],
+    ids=["missing-scheme", "unsupported-scheme", "missing-host", "space", "blank"],
+)
+async def test_config_flow_requires_full_base_url(hass, backend, api_url):
+    """A full base URL with an http or https scheme is mandatory."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+        data={**INPUT, "api_url": api_url},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"api_url": "invalid_url"}
+    assert not hass.config_entries.async_entries(DOMAIN)
+
+
+async def test_config_flow_accepts_https_base_url(hass, backend):
+    """A complete HTTPS base URL is accepted and normalized."""
+    host = "HTTPS://controller.local:9090/clash/api"
+    normalized = "https://controller.local:9090/clash/api/"
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+        data={**INPUT, "api_url": host},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = result["result"]
+    assert entry.data["api_url"] == normalized
+    assert normalized in backend[1]
+
+
 async def test_flow_identity_reload_and_cleanup(hass, backend):
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": "user"}, data=dict(INPUT)
@@ -318,12 +358,14 @@ async def test_reauth_can_clear_token(hass, backend):
     assert entry.runtime_data.coordinator.token == ""
 
 
-async def test_entry_migration_removes_runtime_probe_data(hass, backend):
+async def test_entry_migration_backfills_url_and_drops_use_ssl(hass, backend):
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="controller",
         data={
             **INPUT,
+            "api_url": "controller.local:9090",
+            "use_ssl": True,
             "capabilities": {"traffic": True},
             "available_endpoints": [["traffic", {"read_line": 1}]],
         },
@@ -334,9 +376,11 @@ async def test_entry_migration_removes_runtime_probe_data(hass, backend):
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert entry.minor_version == 2
+    assert entry.minor_version == 3
     assert "capabilities" not in entry.data
     assert "available_endpoints" not in entry.data
+    assert "use_ssl" not in entry.data
+    assert entry.data["api_url"] == "https://controller.local:9090/"
     assert await hass.config_entries.async_unload(entry.entry_id)
 
 

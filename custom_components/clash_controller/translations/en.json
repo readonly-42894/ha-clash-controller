@@ -5,16 +5,15 @@
             "user": {
                 "title": "Clash Controller Setup",
                 "data": {
-                    "api_url": "API",
+                    "api_url": "API base URL",
                     "bearer_token": "Token",
-                    "use_ssl": "Use HTTPS",
                     "allow_unsafe": "Allow Unsafe SSL Certificates"
                 },
                 "data_description": {
-                    "api_url": "Examples: 192.168.1.1:9090, clash.mydomain.com, https://clash.mydomain.com/api",
+                    "api_url": "Full base URL including the scheme, for example http://192.168.1.1:9090 or https://clash.mydomain.com/api",
                     "bearer_token": "Token configured as the controller secret. Leave this empty when the controller has no secret."
                 },
-                "description": "Enter the API address of your Clash instance, including the controller port. A path prefix is allowed when the controller is served below a sub-path. If the location is an IP address, make sure it's static."
+                "description": "Enter the full base URL of your Clash instance, including http:// or https:// and the controller port. A path prefix is allowed when the controller is served below a sub-path. If the location is an IP address, make sure it's static."
             },
             "reauth_confirm": {
                 "title": "Update Clash credentials",
@@ -30,6 +29,7 @@
         "error": {
             "cannot_connect": "Failed to connect to the API. Verify the address and try again.",
             "invalid_token": "The provided API token is invalid. Please check and try again.",
+            "invalid_url": "Enter a complete base URL starting with http:// or https://.",
             "unknown": "An unexpected error occurred. Please try again later.",
             "timed_out": "API connection timed out. Is Clash running?"
         },

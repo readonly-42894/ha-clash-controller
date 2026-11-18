@@ -5,16 +5,15 @@
             "user": {
                 "title": "Clash Controller einrichten",
                 "data": {
-                    "api_url": "API",
+                    "api_url": "API-Basis-URL",
                     "bearer_token": "Token",
-                    "use_ssl": "HTTPS verwenden",
                     "allow_unsafe": "Unsichere SSL-Zertifikate zulassen"
                 },
                 "data_description": {
-                    "api_url": "Beispiele: 192.168.1.1:9090, clash.mydomain.com, https://clash.mydomain.com/api",
+                    "api_url": "Vollständige Basis-URL einschließlich Schema, zum Beispiel http://192.168.1.1:9090 oder https://clash.mydomain.com/api",
                     "bearer_token": "Token aus der Controller-Konfiguration. Leer lassen, wenn der Controller kein Secret verwendet."
                 },
-                "description": "API-Adresse der Clash-Instanz einschließlich Controller-Port eingeben. Wird der Controller unter einem Unterpfad bereitgestellt, ist ein Pfadpräfix erlaubt. Bei einer IP-Adresse muss diese statisch sein."
+                "description": "Vollständige Basis-URL der Clash-Instanz einschließlich http:// bzw. https:// und Controller-Port eingeben. Wird der Controller unter einem Unterpfad bereitgestellt, ist ein Pfadpräfix erlaubt. Bei einer IP-Adresse muss diese statisch sein."
             },
             "reauth_confirm": {
                 "title": "Clash-Token aktualisieren",
@@ -30,6 +29,7 @@
         "error": {
             "cannot_connect": "API nicht erreichbar. Adresse prüfen und erneut versuchen.",
             "invalid_token": "API-Token ungültig. Token prüfen und erneut versuchen.",
+            "invalid_url": "Eine vollständige Basis-URL eingeben, die mit http:// oder https:// beginnt.",
             "unknown": "Unerwarteter Fehler. Später erneut versuchen.",
             "timed_out": "Zeitüberschreitung bei der API-Verbindung. Läuft Clash?"
         },

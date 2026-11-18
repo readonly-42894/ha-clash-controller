@@ -5,16 +5,15 @@
             "user": {
                 "title": "Clash 控制器设置",
                 "data": {
-                    "api_url": "API 地址",
+                    "api_url": "API 基础 URL",
                     "bearer_token": "令牌",
-                    "use_ssl": "使用 HTTPS",
                     "allow_unsafe": "允许不安全的 SSL 证书"
                 },
                 "data_description": {
-                    "api_url": "示例：192.168.1.1:9090、clash.mydomain.com、https://clash.mydomain.com/api",
+                    "api_url": "完整基础 URL，包含协议，例如 http://192.168.1.1:9090、https://clash.mydomain.com/api",
                     "bearer_token": "填写控制器配置中的 secret。控制器未设置 secret 时留空。"
                 },
-                "description": "请输入 Clash 实例的 API 地址（包含控制器端口）。控制器部署在子路径下时，地址可以带路径前缀。如果地址是 IP，请确保其为静态地址。"
+                "description": "请输入 Clash 实例的完整基础 URL，包含 http:// 或 https:// 以及控制器端口。控制器部署在子路径下时，地址可以带路径前缀。如果地址是 IP，请确保其为静态地址。"
             },
             "reauth_confirm": {
                 "title": "更新 Clash 凭据",
@@ -30,6 +29,7 @@
         "error": {
             "cannot_connect": "无法连接到 API，请验证地址后重试。",
             "invalid_token": "提供的 API 令牌无效，请检查后重试。",
+            "invalid_url": "请输入以 http:// 或 https:// 开头的完整基础 URL。",
             "unknown": "发生意外错误，请稍后重试。",
             "timed_out": "API 连接超时， Clash 是否在运行？"
         },

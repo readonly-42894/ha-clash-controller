@@ -26,7 +26,6 @@ async def test_core_loads_in_home_assistant(hass, running_core):
         data={
             "api_url": running_core.url,
             "bearer_token": SECRET,
-            "use_ssl": False,
             "allow_unsafe": False,
         },
     )
@@ -72,7 +71,6 @@ async def test_core_without_secret_loads_in_home_assistant(
         data={
             "api_url": core.url,
             "bearer_token": "",
-            "use_ssl": False,
             "allow_unsafe": False,
         },
     )
@@ -107,7 +105,6 @@ async def test_real_process_outage_recovers_on_poll(hass, running_core):
         data={
             "api_url": running_core.url,
             "bearer_token": SECRET,
-            "use_ssl": False,
             "allow_unsafe": False,
         },
     )

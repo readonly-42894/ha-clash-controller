@@ -6,6 +6,7 @@ import logging
 import re
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import voluptuous as vol
 from clash_controller_api import (
@@ -32,7 +33,6 @@ from .const import (
     CONF_BEAR_TOKEN,
     CONF_CONCURRENT_CONNECTIONS,
     CONF_LOG_WINDOW,
-    CONF_USE_SSL,
     DEFAULT_CONCURRENT_CONNECTIONS,
     DEFAULT_LOG_WINDOW,
     DEFAULT_SCAN_INTERVAL,
@@ -65,19 +65,23 @@ async def _test_connection(api: ClashAPI):
 class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Clash Controller."""
 
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
-    def _normalize_url(self, api_url: str, use_ssl: bool):
-        if api_url.startswith("http://") or api_url.startswith("https://"):
-            if use_ssl and api_url.startswith("http://"):
-                api_url = api_url.replace("http://", "https://", 1)
-            elif not use_ssl and api_url.startswith("https://"):
-                api_url = api_url.replace("https://", "http://", 1)
-        else:
-            api_url = f"https://{api_url}" if use_ssl else f"http://{api_url}"
-        if not api_url.endswith("/"):
-            api_url += "/"
-        return api_url
+    @staticmethod
+    def _normalize_url(api_url: str) -> str | None:
+        """Return a normalized base URL, or None when it is not a valid HTTP URL."""
+        api_url = api_url.strip()
+        if not api_url or any(char.isspace() for char in api_url):
+            return None
+        parsed = urlsplit(api_url)
+        if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+            return None
+        path = parsed.path or "/"
+        if not path.endswith("/"):
+            path += "/"
+        return urlunsplit(
+            (parsed.scheme.lower(), parsed.netloc, path, parsed.query, "")
+        )
 
     async def _set_unique_id(self, api_url: str):
         unique_id = re.sub(r"[^a-zA-Z0-9]", "_", api_url.strip().lower().rstrip("_"))
@@ -95,26 +99,30 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             user_input = {}
 
-        api_url = user_input.get(CONF_API_URL, "")
+        api_url = str(user_input.get(CONF_API_URL, "")).strip()
         token = str(user_input.get(CONF_BEAR_TOKEN, "")).strip()
-        use_ssl = user_input.get(CONF_USE_SSL, False)
         allow_unsafe = user_input.get(CONF_ALLOW_UNSAFE, False)
 
         if user_input:
-            api_url = self._normalize_url(api_url, use_ssl)
-            user_input[CONF_API_URL] = api_url
-            user_input[CONF_BEAR_TOKEN] = token
-            api = ClashAPI(
-                api_url,
-                token,
-                session=async_get_clientsession(self.hass, verify_ssl=not allow_unsafe),
-            )
+            normalized_url = self._normalize_url(api_url)
+            if normalized_url is None:
+                errors[CONF_API_URL] = "invalid_url"
+            else:
+                user_input[CONF_API_URL] = normalized_url
+                user_input[CONF_BEAR_TOKEN] = token
+                api = ClashAPI(
+                    normalized_url,
+                    token,
+                    session=async_get_clientsession(
+                        self.hass, verify_ssl=not allow_unsafe
+                    ),
+                )
 
-            await self._set_unique_id(api_url)
+                await self._set_unique_id(normalized_url)
 
-            errors = await _test_connection(api)
-            if "base" not in errors:
-                return self.async_create_entry(title=api_url, data=user_input)
+                errors = await _test_connection(api)
+                if "base" not in errors:
+                    return self.async_create_entry(title=normalized_url, data=user_input)
 
         return self.async_show_form(
             step_id="user",
@@ -122,7 +130,6 @@ class ClashControllerConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(CONF_API_URL, default=api_url): cv.string,
                     vol.Optional(CONF_BEAR_TOKEN, default=token): cv.string,
-                    vol.Optional(CONF_USE_SSL, default=use_ssl): cv.boolean,
                     vol.Optional(CONF_ALLOW_UNSAFE, default=allow_unsafe): cv.boolean,
                 }
             ),
